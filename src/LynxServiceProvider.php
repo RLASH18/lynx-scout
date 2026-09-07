@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Lynx\Scout;
 
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\ServiceProvider;
+use Lynx\Scout\Collectors\QueryCollector;
+use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
 
 class LynxServiceProvider extends ServiceProvider
 {
@@ -18,8 +22,12 @@ class LynxServiceProvider extends ServiceProvider
             $this->mergeConfigFrom($configPath, 'lynx');
         }
 
-        $this->app->singleton(\Lynx\Scout\Collectors\QueryCollector::class, function (): \Lynx\Scout\Collectors\QueryCollector {
-            return new \Lynx\Scout\Collectors\QueryCollector();
+        $this->app->singleton(QueryCollector::class, function (): QueryCollector {
+            return new QueryCollector();
+        });
+
+        $this->app->singleton(RequestCollector::class, function (): RequestCollector {
+            return new RequestCollector();
         });
     }
 
@@ -35,8 +43,24 @@ class LynxServiceProvider extends ServiceProvider
             ], 'lynx-config');
         }
 
-        if ($this->isMonitoringAllowed() && config('lynx.query.enabled', true)) {
-            $this->app->make(\Lynx\Scout\Collectors\QueryCollector::class)->start();
+        if ($this->isMonitoringAllowed()) {
+            if (config('lynx.query.enabled', true)) {
+                $this->app->make(QueryCollector::class)->start();
+            }
+
+            if (config('lynx.request.enabled', true)) {
+                if ($this->app->bound(Kernel::class)) {
+                    $kernel = $this->app->make(Kernel::class);
+                    $kernel->prependMiddleware(LynxPerformanceMiddleware::class);
+                }
+
+                if ($this->app->bound('router')) {
+                    $router = $this->app->make('router');
+                    $router->aliasMiddleware('lynx.performance', LynxPerformanceMiddleware::class);
+                    $router->pushMiddlewareToGroup('web', LynxPerformanceMiddleware::class);
+                    $router->pushMiddlewareToGroup('api', LynxPerformanceMiddleware::class);
+                }
+            }
         }
     }
 
