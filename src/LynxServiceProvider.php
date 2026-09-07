@@ -7,6 +7,7 @@ namespace Lynx\Scout;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\ServiceProvider;
 use Lynx\Scout\Collectors\QueryCollector;
+use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
 
@@ -28,6 +29,10 @@ class LynxServiceProvider extends ServiceProvider
 
         $this->app->singleton(RequestCollector::class, function (): RequestCollector {
             return new RequestCollector();
+        });
+
+        $this->app->singleton(QueueCollector::class, function (): QueueCollector {
+            return new QueueCollector();
         });
     }
 
@@ -60,6 +65,10 @@ class LynxServiceProvider extends ServiceProvider
                     $router->pushMiddlewareToGroup('web', LynxPerformanceMiddleware::class);
                     $router->pushMiddlewareToGroup('api', LynxPerformanceMiddleware::class);
                 }
+            }
+
+            if (config('lynx.queue.enabled', true) && $this->app->bound('events')) {
+                $this->app->make(QueueCollector::class)->subscribe($this->app->make('events'));
             }
         }
     }
