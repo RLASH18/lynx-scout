@@ -28,6 +28,11 @@ class LynxPerformanceMiddleware
             return $next($request);
         }
 
+        $samplingRate = (float) config('lynx.sampling.rate', 1.0);
+        if ($samplingRate < 1.0 && (mt_rand(1, 10000) / 10000.0) > $samplingRate) {
+            return $next($request);
+        }
+
         $startTime = microtime(true);
         $startQueryCount = $this->queryCollector->count();
         $startQueryTime = $this->queryCollector->totalTimeMs();
