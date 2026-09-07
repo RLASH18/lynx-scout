@@ -130,6 +130,10 @@ class QueryCollector implements Countable
      */
     public function addRecord(QueryRecord $record): void
     {
+        if (count($this->queries) >= $this->maxStoredQueries) {
+            return;
+        }
+
         $this->queries[] = $record;
     }
 
