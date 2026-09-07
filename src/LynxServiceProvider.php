@@ -9,7 +9,10 @@ use Illuminate\Support\ServiceProvider;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
+use Lynx\Scout\Repositories\FileFindingRepository;
+use Lynx\Scout\Repositories\MemoryFindingRepository;
 
 class LynxServiceProvider extends ServiceProvider
 {
@@ -33,6 +36,18 @@ class LynxServiceProvider extends ServiceProvider
 
         $this->app->singleton(QueueCollector::class, function (): QueueCollector {
             return new QueueCollector();
+        });
+
+        $this->app->singleton(FindingRepositoryContract::class, function (): FindingRepositoryContract {
+            $driver = config('lynx.storage.driver', 'file');
+            if ($driver === 'memory') {
+                return new MemoryFindingRepository();
+            }
+
+            return new FileFindingRepository(
+                storagePath: (string) config('lynx.storage.path', storage_path('lynx')),
+                maxFindings: (int) config('lynx.storage.max_findings', 500)
+            );
         });
     }
 
