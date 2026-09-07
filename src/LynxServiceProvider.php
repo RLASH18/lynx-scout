@@ -9,6 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Commands\ScanCommand;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
 use Lynx\Scout\Repositories\FileFindingRepository;
@@ -57,10 +58,16 @@ class LynxServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $configPath = __DIR__ . '/../config/lynx.php';
-        if (file_exists($configPath) && $this->app->runningInConsole()) {
-            $this->publishes([
-                $configPath => config_path('lynx.php'),
-            ], 'lynx-config');
+        if ($this->app->runningInConsole()) {
+            if (file_exists($configPath)) {
+                $this->publishes([
+                    $configPath => config_path('lynx.php'),
+                ], 'lynx-config');
+            }
+
+            $this->commands([
+                ScanCommand::class,
+            ]);
         }
 
         if ($this->isMonitoringAllowed()) {
