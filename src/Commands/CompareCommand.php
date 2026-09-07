@@ -17,7 +17,9 @@ class CompareCommand extends Command
      */
     protected $signature = 'lynx:compare
                             {before? : Identifier of baseline snapshot}
-                            {after? : Identifier of comparison snapshot}';
+                            {after? : Identifier of comparison snapshot}
+                            {--fail-on-regression : Exit with failure status if performance regressed}
+                            {--threshold= : Custom regression percentage threshold}';
 
     /**
      * The console command description.
@@ -56,6 +58,10 @@ class CompareCommand extends Command
                 $this->error("Comparison snapshot '{$afterId}' not found.");
                 return Command::FAILURE;
             }
+        }
+
+        if ($threshold = $this->option('threshold')) {
+            config(['lynx.ci.regression_threshold' => (float) $threshold]);
         }
 
         $comparison = $comparator->compare($before, $after);
@@ -102,6 +108,11 @@ class CompareCommand extends Command
             $this->newLine();
             $this->line('────────────────────────────────');
             $this->newLine();
+        }
+
+        if ($this->option('fail-on-regression') && ($comparison['has_regression'] ?? false)) {
+            $this->error('CI Check Failed: One or more performance regression thresholds were exceeded.');
+            return Command::FAILURE;
         }
 
         return Command::SUCCESS;
