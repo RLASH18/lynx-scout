@@ -9,6 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Commands\ReportCommand;
 use Lynx\Scout\Commands\ScanCommand;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
@@ -67,6 +68,7 @@ class LynxServiceProvider extends ServiceProvider
 
             $this->commands([
                 ScanCommand::class,
+                ReportCommand::class,
             ]);
         }
 
