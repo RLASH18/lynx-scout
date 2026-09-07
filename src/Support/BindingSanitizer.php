@@ -7,21 +7,23 @@ namespace Lynx\Scout\Support;
 class BindingSanitizer
 {
     /**
-     * Common sensitive keys and patterns to redact.
+     * Default sensitive keywords to redact.
      *
      * @var list<string>
      */
-    private const SENSITIVE_PATTERNS = [
+    private const DEFAULT_SENSITIVE_PATTERNS = [
         'password',
         'secret',
         'token',
         'api_key',
         'apikey',
         'auth',
+        'bearer',
         'credit_card',
         'card_number',
         'cvv',
         'ssn',
+        'private_key',
     ];
 
     /**
@@ -32,23 +34,42 @@ class BindingSanitizer
      */
     public static function sanitize(array $bindings): array
     {
+        $customPatterns = (array) config('lynx.query.hidden_patterns', []);
+        $patterns = array_merge(self::DEFAULT_SENSITIVE_PATTERNS, $customPatterns);
+
         $sanitized = [];
 
         foreach ($bindings as $key => $value) {
+            // Check string keys (named bindings)
             if (is_string($key)) {
                 $lowerKey = strtolower($key);
-                foreach (self::SENSITIVE_PATTERNS as $pattern) {
-                    if (str_contains($lowerKey, $pattern)) {
+                foreach ($patterns as $pattern) {
+                    if (str_contains($lowerKey, strtolower($pattern))) {
                         $sanitized[$key] = '********';
                         continue 2;
                     }
                 }
             }
 
-            // If value is exceptionally large (over 1024 chars), truncate for memory efficiency
-            if (is_string($value) && strlen($value) > 1024) {
-                $sanitized[$key] = substr($value, 0, 128) . '... [TRUNCATED]';
-                continue;
+            // Check sensitive value shapes (JWTs, hashes, private keys)
+            if (is_string($value)) {
+                // JWT Token shape (starts with eyJ... and has 2 dots)
+                if (str_starts_with($value, 'eyJ') && substr_count($value, '.') === 2) {
+                    $sanitized[$key] = '******** [REDACTED JWT]';
+                    continue;
+                }
+
+                // Bcrypt hash ($2y$... or $2a$...)
+                if (str_starts_with($value, '$2y$') || str_starts_with($value, '$2a$')) {
+                    $sanitized[$key] = '******** [REDACTED HASH]';
+                    continue;
+                }
+
+                // Truncate excessively long strings to preserve memory and prevent huge leaks
+                if (strlen($value) > 512) {
+                    $sanitized[$key] = substr($value, 0, 96) . '... [TRUNCATED]';
+                    continue;
+                }
             }
 
             $sanitized[$key] = $value;
