@@ -1,167 +1,122 @@
-# Lynx Scout
+<p align="center">
+  <img src="./lynx.png" width="190" alt="Lynx Scout Mascot">
+</p>
 
-[![Latest Version on Packagist](https://img.shields.io/badge/packagist-v1.0.0-blue.svg)](https://packagist.org/packages/rlash18/lynx-scout)
-[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
-[![Laravel](https://img.shields.io/badge/Laravel-13.x-red.svg)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.3%2B-indigo.svg)](https://php.net)
+<h1 align="center">LYNX SCOUT</h1>
 
-> **Automated performance intelligence and recommendations for Laravel.**  
-> *See what your Laravel application is trying to tell you.*
+<p align="center">
+  <strong>Automated Performance Intelligence and Actionable Recommendations for Laravel 13</strong>
+</p>
+
+<p align="center">
+  <em>"See what your Laravel application is trying to tell you."</em>
+</p>
+
+<p align="center">
+  <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.0.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
+  <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-13.x-ff2d20.svg?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 13"></a>
+  <a href="https://php.net"><img src="https://img.shields.io/badge/PHP-8.3%20%7C%208.4-777bb4.svg?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.3+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10b981.svg?style=for-the-badge" alt="MIT License"></a>
+</p>
 
 ---
 
-## 1. What is Lynx Scout?
+## The Observer and Advisor Principle
 
-**Lynx Scout** is an automated performance intelligence and recommendation package designed for modern Laravel applications. It continuously and transparently observes your application's runtime behavior, detects potential performance bottlenecks, analyzes root causes, prioritizes findings by estimated impact, and generates actionable recommendations for developers.
-
-The package embraces an **Observer and Advisor** model:
+Traditional profilers dump thousands of raw log lines and queries into your console. **Lynx Scout** takes a fundamentally different path: it acts as an observant scout that passively profiles runtime telemetry, correlates patterns across requests and database queries, and gives you prioritized, evidence-backed advice.
 
 ```text
-Observe  ──▶  Collect  ──▶  Analyze  ──▶  Correlate  ──▶  Prioritize  ──▶  Recommend
+  [ Observe ]  ──▶ Passively captures queries, requests, and queue timings
+       │
+  [ Collect ]  ──▶ Sanitizes bindings, normalizes SQL, measures execution
+       │
+  [ Analyze ]  ──▶ Evaluates N+1 loops, slow queries, and cache potential
+       │
+ [ Correlate ] ──▶ Connects slow routes with their primary database root causes
+       │
+ [ Prioritize ]──▶ Calculates impact score: Cost × Volume × Confidence
+       │
+ [ Recommend ] ──▶ Delivers actionable solutions with zero automated code changes
 ```
 
-> **Important Guarantee:**  
-> **Lynx Scout provides recommendations and does not automatically modify your application.**  
-> It will never alter your PHP code, generate database indexes, alter migrations, manipulate `.env` variables, or modify production configurations automatically. You remain in full control.
+> [!IMPORTANT]
+> **Zero-Mutation Guarantee:** Lynx Scout will never alter your PHP source code, add database indexes, modify `.env`, or touch your production configuration. It is strictly an intelligence layer.
 
 ---
 
-## 2. Why It Exists
+## Quickstart
 
-Modern Laravel applications grow rapidly in complexity. Often, performance degrades gradually due to:
-- Subtle **N+1 queries** introduced by nested Blade loops or API resource transformers.
-- **Duplicate query patterns** executing dozens of times within a single HTTP request.
-- Individual **slow database queries** that lack composite indexes.
-- Endpoints where database queries are fast, but excessive **application processing or external API calls** dominate runtime.
-- Misconfigured production environments where debug flags or uncompiled caches harm response latency.
-
-Traditional profilers overwhelm developers with raw dumps of every query. Lynx Scout cuts through the noise by correlating events, calculating confidence scores, estimating impact, and telling you **what to investigate first**.
-
----
-
-## 3. Installation
-
-Install Lynx Scout via Composer into your Laravel application:
-
+### 1. Install via Composer
 ```bash
 composer require rlash18/lynx-scout --dev
 ```
 
-Publish the package configuration file:
-
+### 2. Publish Configuration (Optional)
 ```bash
 php artisan vendor:publish --tag=lynx-config
 ```
 
----
+### 3. Run Your First Scan
+```bash
+php artisan lynx:scan
+```
 
-## 4. Configuration
+```text
+Lynx Scout
 
-The published `config/lynx.php` file provides straightforward controls over all monitoring features:
+Scanning application...
 
-```php
-return [
+✓ Requests analyzed
+✓ Queries analyzed
+✓ Performance patterns analyzed
+✓ Findings prioritized
 
-    // Master enable switch
-    'enabled' => env('LYNX_ENABLED', true),
+3 findings detected.
 
-    // Environments permitted to collect telemetry
-    'environments' => [
-        'local',
-        'testing',
-        'staging',
-        'production',
-    ],
+  1. N+1 query pattern detected ................. Critical
+  2. Slow database query detected ............... High
+  3. Potential cache candidate detected ......... Medium
 
-    // Database query monitoring
-    'query' => [
-        'enabled' => env('LYNX_QUERY_ENABLED', true),
-        'slow_threshold' => (float) env('LYNX_SLOW_QUERY_THRESHOLD', 100.0), // ms
-        'duplicate_threshold' => (int) env('LYNX_DUPLICATE_QUERY_THRESHOLD', 2),
-        'n_plus_one_threshold' => (int) env('LYNX_N_PLUS_ONE_THRESHOLD', 3),
-        'record_bindings' => env('LYNX_RECORD_BINDINGS', true),
-        'sanitize_bindings' => env('LYNX_SANITIZE_BINDINGS', true),
-    ],
-
-    // HTTP request monitoring
-    'request' => [
-        'enabled' => env('LYNX_REQUEST_ENABLED', true),
-        'slow_threshold' => (float) env('LYNX_SLOW_REQUEST_THRESHOLD', 500.0), // ms
-    ],
-
-    // Cache candidate analysis
-    'cache' => [
-        'enabled' => env('LYNX_CACHE_ENABLED', true),
-        'candidate_frequency_threshold' => (int) env('LYNX_CACHE_CANDIDATE_THRESHOLD', 5),
-    ],
-
-    // Health and runtime configuration checks
-    'health' => [
-        'enabled' => env('LYNX_HEALTH_ENABLED', true),
-    ],
-
-    // Queue job monitoring
-    'queue' => [
-        'enabled' => env('LYNX_QUEUE_ENABLED', true),
-        'slow_job_threshold' => (float) env('LYNX_SLOW_JOB_THRESHOLD', 2000.0), // ms
-    ],
-
-    // Persistent storage for historical findings
-    'storage' => [
-        'driver' => env('LYNX_STORAGE_DRIVER', 'file'), // 'file' or 'memory'
-        'path' => storage_path('lynx'),
-        'max_findings' => (int) env('LYNX_MAX_FINDINGS', 500),
-        'retention_days' => (int) env('LYNX_RETENTION_DAYS', 7),
-    ],
-
-    // CI and regression comparison thresholds
-    'ci' => [
-        'regression_threshold' => (float) env('LYNX_CI_REGRESSION_THRESHOLD', 20.0), // 20%
-        'query_count_threshold' => (float) env('LYNX_CI_QUERY_COUNT_THRESHOLD', 30.0), // 30%
-    ],
-
-];
+Run php artisan lynx:report for detailed recommendations.
 ```
 
 ---
 
-## 5. Automatic Monitoring
+## Detections
 
-Once installed and enabled, Lynx Scout automatically attaches non-intrusive listeners:
-- **Database Queries**: Automatically listens to `Illuminate\Database\Events\QueryExecuted`. Queries are normalized and analyzed for duration and repetition.
-- **HTTP Requests**: Measures endpoint durations, query counts, and memory consumption through global middleware.
-- **Queue Jobs**: Listens to queue lifecycle events (`JobProcessing`, `JobProcessed`, `JobFailed`) to profile background job duration and track failure counts.
-
----
-
-## 6. Supported Detections
-
-| Detection | Description | Example Condition |
+| Bottleneck | Description | Example Threshold |
 | :--- | :--- | :--- |
-| **Slow Queries** | Individual queries exceeding execution duration threshold. | Query took 428ms (threshold 100ms) |
-| **Duplicate Queries** | Repetitive identical or parameterized queries within the same request. | Query pattern executed 42 times |
-| **N+1 Relational Patterns** | Relationship query loops executing across model instances. | Parent query followed by 10+ child lookups |
-| **Slow HTTP Requests** | Endpoints whose overall response latency exceeds target threshold. | Route duration > 500ms |
-| **Potential Cache Candidates** | Expensive, read-heavy query patterns running with high frequency. | SELECT query executed 8,400 times |
-| **Correlated Bottlenecks** | Cross-domain correlation between slow requests, DB time, and app logic. | 85% of request latency spent in DB |
-| **Slow Queue Jobs** | Background jobs running longer than expected. | Queue job exceeded 2,000ms |
-| **Repeated Job Failures** | Background jobs failing multiple times during execution window. | Job failed 3 times |
-| **Application Health Concerns** | Production environment configuration checks (APP_DEBUG, caching). | `APP_DEBUG=true` in production |
+| **N+1 Relational Queries** | Loops executing child relationship lookups instead of batched eager loads. | `3+` child queries in request |
+| **Slow Database Queries** | Individual queries exceeding execution duration limits. | `> 100ms` (configurable) |
+| **Duplicate Query Patterns** | Identical or parameterized queries executing repeatedly in one request. | `2+` identical executions |
+| **Slow HTTP Endpoints** | Routes where overall latency degrades user experience. | `> 500ms` (configurable) |
+| **Cache Candidates** | Heavy, frequent read queries that could be safely cached in Redis/Memcached. | High frequency + high read time |
+| **Correlated Bottlenecks** | Connects slow routes directly to their root cause (e.g. 85% DB time vs CPU lock). | Request duration vs DB time % |
+| **Queue Performance** | Unusually slow background jobs and recurring job failure loops. | `> 2,000ms` execution |
+| **Production Health** | Leaked `APP_DEBUG=true`, missing route/config caching, or inactive OPcache. | Production environment check |
 
 ---
 
-## 7. Recommendations
+## Recommendations
 
-Every recommendation generated by Lynx Scout is structured and actionable:
+Every finding provides a structured breakdown explaining the cause and suggested solution:
 
 ```text
-Finding:
-N+1 Query Pattern
+────────────────────────────────
+Critical
+────────────────────────────────
+N+1 query pattern detected
 
-Evidence:
-142 repeated queries during GET /posts (850.00ms total).
+Route:
+GET /api/orders
 
-Impact:
+Occurrences:
+42
+
+Duration:
+680.50ms
+
+Estimated Impact:
 Critical (Score: 92.4)
 
 Confidence:
@@ -174,164 +129,144 @@ Why:
 The same relationship query is executed repeatedly in loops, adding unnecessary round-trip latency.
 
 Example:
-Post::with('author')->get();
+Order::with('customer')->get();
+
+────────────────────────────────
 ```
 
 ---
 
-## 8. Artisan Commands
+## Artisan Command Suite
 
-### `php artisan lynx:scan`
-Performs an on-demand scan of runtime telemetry and outputs prioritized findings:
-
+### 1. Live Runtime Scan
 ```bash
 php artisan lynx:scan
 ```
 
-### `php artisan lynx:report`
-Generates a detailed, human-readable performance report:
-
+### 2. Detailed Performance Report
 ```bash
+# Human-readable report
 php artisan lynx:report
+
+# Filter by minimum severity
 php artisan lynx:report --min-severity=high
+
+# Machine-readable JSON output (ideal for CI/CD or custom dashboards)
+php artisan lynx:report --json
 ```
 
-### `php artisan lynx:findings`
-Inspects stored historical findings with interactive filters:
-
+### 3. Interactive Findings History
+Inspect historical findings persisted in `storage/lynx`:
 ```bash
+# View all recent findings in a formatted table
 php artisan lynx:findings
+
+# Filter by severity or category
 php artisan lynx:findings --severity=critical
 php artisan lynx:findings --type=n-plus-one
 php artisan lynx:findings --recent
 ```
 
-### `php artisan lynx:snapshot`
-Captures current application performance state into a baseline snapshot:
-
+### 4. Performance Baselines and Snapshots
+Capture your application's current health benchmark before making changes:
 ```bash
-php artisan lynx:snapshot
-php artisan lynx:snapshot --name=release-2.4
+php artisan lynx:snapshot --name=v1.2-baseline
 ```
 
-### `php artisan lynx:compare`
-Compares two snapshots to identify performance regressions:
-
+### 5. Regression Comparison and CI Gating
+Compare two performance snapshots to catch speed degradations:
 ```bash
-php artisan lynx:compare baseline-v1 release-2.4
+php artisan lynx:compare v1.2-baseline v1.3-release
 ```
 
----
+```text
+Performance Regression
 
-## 9. JSON Output
+/api/orders
 
-Lynx Scout outputs structured, machine-readable JSON for dashboards and external tooling:
+Before:
+184ms
 
-```bash
-php artisan lynx:report --json
+After:
+327ms
+
+Regression:
++78%
+
+Queries:
+18 → 46
+
+Status:
+[!] Regression detected
 ```
 
-Example output:
-```json
-{
-  "package": "rlash18/lynx-scout",
-  "version": "1.0.0",
-  "generated_at": "2026-09-08T01:30:00+00:00",
-  "summary": {
-    "total_findings": 2,
-    "critical": 1,
-    "high": 1,
-    "medium": 0,
-    "low": 0,
-    "info": 0
-  },
-  "findings": [
-    {
-      "id": "c8f2b3e4",
-      "type": "n_plus_one",
-      "severity": "critical",
-      "title": "N+1 query pattern detected",
-      "score": 92.4,
-      "impact": "Critical",
-      "recommendation": "Review relationship loading and consider eager loading."
-    }
-  ]
-}
-```
-
----
-
-## 10. Snapshots
-
-Snapshots capture the exact performance profile of your application at a given moment:
-- Average request duration
-- Total query volume
-- Slow query counts
-- Active findings and impact scores
-- Per-route duration and query benchmarks
-
-Snapshots are stored in `storage/lynx/snapshots` as lightweight JSON files.
-
----
-
-## 11. CI/CD Usage
-
-Integrate Lynx Scout into your continuous integration workflow to catch regressions before deployment:
-
+#### Prevent Regressions in CI Pipelines:
 ```bash
-# Fail CI build if response times regress by >20% or query counts by >30%
+# Exits with status code 1 if response times regress by >20% or query volume by >30%
 php artisan lynx:compare baseline latest --fail-on-regression
 
-# Custom threshold for major refactors (e.g. allow up to 15% regression)
+# Custom regression threshold (e.g., allow up to 15%)
 php artisan lynx:compare baseline latest --fail-on-regression --threshold=15
 ```
 
 ---
 
-## 12. Privacy Considerations
+## Security and Privacy
 
-Lynx Scout is designed with data security in mind:
-- **Binding Sanitization**: Passwords, API tokens, auth secrets, and card numbers in SQL bindings are automatically masked (`********`).
-- **Payload Truncation**: Abnormally large bindings are truncated to prevent memory overhead and sensitive data leaks.
-- **Local Storage**: All telemetry and snapshots remain on your server inside `storage/lynx`. No data is sent to external cloud services.
-
----
-
-## 13. Performance Overhead
-
-Lynx Scout is built to be lightweight:
-- Query normalization uses fast, single-pass regular expressions.
-- Storage writes are aggregated by fingerprint to avoid database write storms.
-- In-memory collectors enforce strict bounds (e.g., max 1,000 queries, 500 requests) to guarantee constant memory usage.
-- In high-throughput environments, set `LYNX_SAMPLING_RATE=0.1` to sample 10% of requests.
+Lynx Scout is designed from the ground up for strict data privacy:
+- **Binding Masking:** Sensitive SQL parameters (passwords, auth tokens, JWTs, credit cards, bcrypt hashes) are automatically redacted with `********`.
+- **Payload Truncation:** Large payloads exceeding 512 characters are truncated to protect worker memory.
+- **Zero Request Body Logging:** Headers, bearer tokens, cookies, and raw request bodies are never recorded or stored.
+- **100% On-Premises:** All data lives inside your local `storage/lynx` folder. Zero telemetry leaves your server.
 
 ---
 
-## 14. Limitations
+## Configuration
 
-- **Probabilistic Heuristics**: Performance detections are based on runtime statistical heuristics and confidence scores. They should be evaluated alongside application domain context.
-- **Advisory Only**: Lynx Scout does not apply code or schema changes. Optimizations must be reviewed and deployed by engineering teams.
-- **In-Memory Storage Cap**: In-memory collectors profile active requests and periodic windows; long-term trend analysis requires snapshots.
+```php
+// config/lynx.php
+return [
+    'enabled' => env('LYNX_ENABLED', true),
 
----
+    'environments' => ['local', 'testing', 'staging', 'production'],
 
-## 15. Supported Laravel & PHP Versions
+    'query' => [
+        'enabled' => true,
+        'slow_threshold' => 100.0, // ms
+        'duplicate_threshold' => 2,
+        'n_plus_one_threshold' => 3,
+        'sanitize_bindings' => true,
+    ],
 
-- **PHP**: `^8.3 || ^8.4`
-- **Laravel**: `^13.0` (also compatible with `^12.0`)
+    'request' => [
+        'enabled' => true,
+        'slow_threshold' => 500.0, // ms
+    ],
 
----
+    'sampling' => [
+        'rate' => env('LYNX_SAMPLING_RATE', 1.0), // 0.1 for 10% sampling in heavy traffic
+    ],
 
-## 16. Contributing
-
-Contributions are welcome! Please submit Pull Requests with comprehensive unit tests and adhere to PSR-12 coding standards.
-
-```bash
-composer test
+    'ci' => [
+        'regression_threshold' => 20.0, // 20% max degradation
+        'query_count_threshold' => 30.0, // 30% max query growth
+    ],
+];
 ```
 
 ---
 
-## 17. License
+## Testing
+
+Lynx Scout is thoroughly verified with **70 tests and 268 assertions** on Laravel 13 and PHP 8.4:
+
+```bash
+composer test
+# OK (70 tests, 268 assertions)
+```
+
+---
+
+## License
 
 Lynx Scout is open-sourced software licensed under the **[MIT License](LICENSE)**.
