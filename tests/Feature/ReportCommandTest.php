@@ -43,4 +43,13 @@ class ReportCommandTest extends TestCase
             ->expectsOutputToContain('Recommendation:')
             ->assertSuccessful();
     }
+
+    public function test_report_command_json_output(): void
+    {
+        $this->artisan('lynx:report --json')
+            ->expectsOutputToContain('"package": "rlash18/lynx-scout"')
+            ->expectsOutputToContain('"summary"')
+            ->expectsOutputToContain('"findings"')
+            ->assertSuccessful();
+    }
 }

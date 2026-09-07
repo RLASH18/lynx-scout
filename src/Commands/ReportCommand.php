@@ -15,14 +15,16 @@ class ReportCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'lynx:report {--min-severity= : Minimum severity level to include}';
+    protected $signature = 'lynx:report
+                            {--min-severity= : Minimum severity level to include}
+                            {--json : Output report as structured JSON}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Generate a detailed human-readable performance findings report';
+    protected $description = 'Generate a detailed performance findings report (text or JSON)';
 
     /**
      * Execute the console command.
@@ -41,6 +43,29 @@ class ReportCommand extends Command
                 $findings,
                 fn ($f): bool => ($weights[$f->getSeverity()->value] ?? 0) >= $minWeight
             ));
+        }
+
+        if ($this->option('json')) {
+            $payload = [
+                'package' => 'rlash18/lynx-scout',
+                'version' => '0.1.0',
+                'generated_at' => (new \DateTimeImmutable())->format(\DateTimeImmutable::ATOM),
+                'summary' => [
+                    'total_findings' => count($findings),
+                    'critical' => count(array_filter($findings, fn ($f) => $f->getSeverity()->value === 'critical')),
+                    'high' => count(array_filter($findings, fn ($f) => $f->getSeverity()->value === 'high')),
+                    'medium' => count(array_filter($findings, fn ($f) => $f->getSeverity()->value === 'medium')),
+                    'low' => count(array_filter($findings, fn ($f) => $f->getSeverity()->value === 'low')),
+                    'info' => count(array_filter($findings, fn ($f) => $f->getSeverity()->value === 'info')),
+                ],
+                'findings' => array_map(fn ($f): array => $f->toArray(), $findings),
+            ];
+
+            foreach (explode("\n", (string) json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) as $jsonLine) {
+                $this->line($jsonLine);
+            }
+
+            return Command::SUCCESS;
         }
 
         $reportText = $generator->generate($findings);
