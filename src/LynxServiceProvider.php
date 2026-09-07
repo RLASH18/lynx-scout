@@ -12,6 +12,7 @@ use Lynx\Scout\Collectors\RequestCollector;
 use Lynx\Scout\Commands\FindingsCommand;
 use Lynx\Scout\Commands\ReportCommand;
 use Lynx\Scout\Commands\ScanCommand;
+use Lynx\Scout\Commands\SnapshotCommand;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
 use Lynx\Scout\Repositories\FileFindingRepository;
@@ -52,6 +53,12 @@ class LynxServiceProvider extends ServiceProvider
                 maxFindings: (int) config('lynx.storage.max_findings', 500)
             );
         });
+
+        $this->app->singleton(\Lynx\Scout\Repositories\SnapshotRepository::class, function (): \Lynx\Scout\Repositories\SnapshotRepository {
+            return new \Lynx\Scout\Repositories\SnapshotRepository(
+                storagePath: (string) config('lynx.storage.path', storage_path('lynx'))
+            );
+        });
     }
 
     /**
@@ -71,6 +78,7 @@ class LynxServiceProvider extends ServiceProvider
                 ScanCommand::class,
                 ReportCommand::class,
                 FindingsCommand::class,
+                SnapshotCommand::class,
             ]);
         }
 
