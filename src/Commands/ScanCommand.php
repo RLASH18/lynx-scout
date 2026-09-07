@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lynx\Scout\Commands;
 
 use Illuminate\Console\Command;
+use Lynx\Scout\Data\Severity;
 use Lynx\Scout\Services\LynxScanner;
 
 class ScanCommand extends Command
@@ -14,7 +15,7 @@ class ScanCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'lynx:scan';
+    protected $signature = 'lynx:scan {--sections : Group output strictly by severity sections}';
 
     /**
      * The console command description.
@@ -44,6 +45,7 @@ class ScanCommand extends Command
 
         $count = count($findings);
         if ($count === 0) {
+            $this->line('<info>[Healthy]</info>');
             $this->info('No performance concerns detected. Application is healthy!');
             $this->newLine();
             return Command::SUCCESS;
@@ -56,10 +58,24 @@ class ScanCommand extends Command
         foreach ($findings as $finding) {
             $title = $finding->getTitle();
             $severity = $finding->getSeverity()->label();
-
-            // Right-pad for dots formatting
             $dots = str_repeat('.', max(2, 40 - strlen($title)));
             $this->line(sprintf('  %d. %s %s <fg=%s>%s</>', $index++, $title, $dots, $this->severityColor($severity), $severity));
+        }
+
+        $this->newLine();
+        $this->line('Sections:');
+        $sections = [
+            'Critical' => Severity::Critical,
+            'High' => Severity::High,
+            'Medium' => Severity::Medium,
+            'Low' => Severity::Low,
+        ];
+
+        foreach ($sections as $name => $sev) {
+            $matching = array_filter($findings, fn ($f) => $f->getSeverity() === $sev);
+            $c = count($matching);
+            $color = $this->severityColor($name);
+            $this->line(sprintf('  <fg=%s;options=bold>[%s]</> : %d finding%s', $color, $name, $c, $c === 1 ? '' : 's'));
         }
 
         $this->newLine();

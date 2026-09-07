@@ -24,7 +24,10 @@ class ReportGenerator
         $lines[] = '';
 
         if (empty($findings)) {
+            $lines[] = 'Healthy';
+            $lines[] = self::DIVIDER;
             $lines[] = 'No performance issues detected. Application runtime is healthy.';
+            $lines[] = '';
             $lines[] = self::DIVIDER;
             return implode("\n", $lines);
         }
