@@ -23,6 +23,18 @@ class CallerDetector
      */
     public static function detect(): ?string
     {
+        if (! (bool) config('lynx.callers.enabled', true)) {
+            return null;
+        }
+
+        $sampleRate = (float) config('lynx.callers.sample_rate', 1.0);
+        if ($sampleRate < 1.0 && (mt_rand(1, 10000) / 10000.0) > $sampleRate) {
+            return null;
+        }
+
+        $customIgnored = (array) config('lynx.callers.ignored_namespaces', []);
+        $ignoredNamespaces = array_merge(self::IGNORED_NAMESPACES, $customIgnored);
+
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 25);
 
         foreach ($trace as $frame) {
@@ -31,7 +43,7 @@ class CallerDetector
 
             if ($class !== null) {
                 $ignored = false;
-                foreach (self::IGNORED_NAMESPACES as $ns) {
+                foreach ($ignoredNamespaces as $ns) {
                     if (str_starts_with($class, $ns)) {
                         $ignored = true;
                         break;

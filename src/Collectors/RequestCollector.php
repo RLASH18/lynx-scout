@@ -19,7 +19,12 @@ class RequestCollector implements Countable
     /**
      * Maximum stored requests in memory.
      */
-    private int $maxStoredRequests = 500;
+    private int $maxStoredRequests;
+
+    public function __construct(?int $maxStoredRequests = null)
+    {
+        $this->maxStoredRequests = $maxStoredRequests ?? (int) config('lynx.collectors.max_requests', 500);
+    }
 
     /**
      * Record an observed HTTP request.

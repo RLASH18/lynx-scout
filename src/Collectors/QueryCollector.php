@@ -37,7 +37,12 @@ class QueryCollector implements Countable
     /**
      * Maximum queries stored in memory to prevent memory bloat.
      */
-    private int $maxStoredQueries = 1000;
+    private int $maxStoredQueries;
+
+    public function __construct(?int $maxStoredQueries = null)
+    {
+        $this->maxStoredQueries = $maxStoredQueries ?? (int) config('lynx.collectors.max_queries', 1000);
+    }
 
     /**
      * Start observing database queries.

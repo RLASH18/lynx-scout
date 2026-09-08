@@ -26,6 +26,12 @@ class ConfigurationTest extends TestCase
         $this->assertEquals(1.0, config('lynx.sampling.rate'));
         $this->assertIsArray(config('lynx.environments'));
         $this->assertContains('local', config('lynx.environments'));
+        $this->assertEquals(1000, config('lynx.collectors.max_queries'));
+        $this->assertEquals(500, config('lynx.collectors.max_requests'));
+        $this->assertEquals(500, config('lynx.collectors.max_queue_jobs'));
+        $this->assertTrue(config('lynx.callers.enabled'));
+        $this->assertEquals(1.0, config('lynx.callers.sample_rate'));
+        $this->assertEquals(45.0, config('lynx.scoring.weights.critical'));
     }
 
     /**
@@ -38,5 +44,8 @@ class ConfigurationTest extends TestCase
 
         config(['lynx.enabled' => false]);
         $this->assertFalse(config('lynx.enabled'));
+
+        config(['lynx.collectors.max_queries' => 150]);
+        $this->assertEquals(150, config('lynx.collectors.max_queries'));
     }
 }

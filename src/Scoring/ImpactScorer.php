@@ -9,6 +9,17 @@ use Lynx\Scout\Data\Severity;
 
 class ImpactScorer
 {
+    /** @var array<string, float> */
+    private readonly array $weights;
+
+    /**
+     * @param array<string, float>|null $weights
+     */
+    public function __construct(?array $weights = null)
+    {
+        $this->weights = $weights ?? (array) config('lynx.scoring.weights', []);
+    }
+
     /**
      * Calculate impact score for a finding and return a scored copy.
      * Note: The score is an estimation for developer prioritization, not a physical constant.
@@ -21,11 +32,11 @@ class ImpactScorer
 
         // 1. Base cost determined by baseline severity weight
         $baseWeight = match ($severity) {
-            Severity::Critical => 45.0,
-            Severity::High => 35.0,
-            Severity::Medium => 25.0,
-            Severity::Low => 15.0,
-            Severity::Info => 5.0,
+            Severity::Critical => (float) ($this->weights['critical'] ?? 45.0),
+            Severity::High => (float) ($this->weights['high'] ?? 35.0),
+            Severity::Medium => (float) ($this->weights['medium'] ?? 25.0),
+            Severity::Low => (float) ($this->weights['low'] ?? 15.0),
+            Severity::Info => (float) ($this->weights['info'] ?? 5.0),
         };
 
         // 2. Duration / time penalty

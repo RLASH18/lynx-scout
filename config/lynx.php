@@ -141,6 +141,57 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | In-Memory Collectors Capacity Limits
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of records retained in memory before eviction or capping.
+    |
+    */
+    'collectors' => [
+        'max_queries' => (int) env('LYNX_MAX_QUERIES', 1000),
+        'max_requests' => (int) env('LYNX_MAX_REQUESTS', 500),
+        'max_queue_jobs' => (int) env('LYNX_MAX_QUEUE_JOBS', 500),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Caller Detection Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Settings for identifying origin caller location from query execution stack.
+    |
+    */
+    'callers' => [
+        'enabled' => env('LYNX_CALLERS_ENABLED', true),
+        'sample_rate' => (float) env('LYNX_CALLERS_SAMPLE_RATE', 1.0),
+        'ignored_namespaces' => [
+            'Illuminate\\',
+            'Lynx\\Scout\\',
+            'Laravel\\',
+            'Symfony\\',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scoring Weights
+    |--------------------------------------------------------------------------
+    |
+    | Baseline scoring weights assigned to findings by severity level.
+    |
+    */
+    'scoring' => [
+        'weights' => [
+            'critical' => 45.0,
+            'high' => 35.0,
+            'medium' => 25.0,
+            'low' => 15.0,
+            'info' => 5.0,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | CI & Regression Thresholds
     |--------------------------------------------------------------------------
     |
