@@ -42,18 +42,33 @@ class ScanCommand extends Command
 
         LynxCli::header('SCANNER');
 
-        $route = $this->option('route');
-        if ($route) {
+        $rawRoute = $this->option('route');
+        if ($rawRoute) {
+            $route = (string) $rawRoute;
+            // Normalize Git Bash POSIX-to-Windows path translation (e.g. C:/Program Files/Git/products -> /products)
+            if (preg_match('#^[A-Za-z]:/(?:.*?/)?(?:Git|msys\d*)/(.*)$#i', $route, $matches)) {
+                $route = '/' . ltrim($matches[1], '/');
+            } else {
+                $route = '/' . ltrim($route, '/');
+            }
+
             render(<<<HTML
                 <div class="text-gray-400 mb-1">Dispatching and profiling route <span class="text-amber-400 font-bold">{$route}</span>...</div>
             HTML);
 
             try {
                 $kernel = $this->laravel->make(Kernel::class);
-                $request = Request::create((string) $route, 'GET');
+                $request = Request::create($route, 'GET');
                 $response = $kernel->handle($request);
                 if (method_exists($kernel, 'terminate')) {
                     $kernel->terminate($request, $response);
+                }
+
+                $statusCode = $response->getStatusCode();
+                if ($statusCode >= 400) {
+                    render(<<<HTML
+                        <div class="text-amber-400 font-bold mb-1">Notice: Route returned HTTP {$statusCode}. (Verify that the route exists and is reachable)</div>
+                    HTML);
                 }
             } catch (\Throwable $e) {
                 render(<<<HTML
@@ -68,7 +83,7 @@ class ScanCommand extends Command
 
         $findings = $scanner->scan();
 
-        if (empty($findings) && ! $route) {
+        if (empty($findings) && ! $rawRoute) {
             $findings = $repository->all();
         }
 

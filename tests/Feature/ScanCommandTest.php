@@ -56,6 +56,18 @@ class ScanCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_scan_command_normalizes_git_bash_translated_route(): void
+    {
+        $this->app['router']->get('/bench-target', function () {
+            DB::select('SELECT 1');
+            return response()->json(['status' => 'ok']);
+        });
+
+        $this->artisan('lynx:scan', ['--route' => 'C:/Program Files/Git/bench-target'])
+            ->expectsOutputToContain('/bench-target')
+            ->assertSuccessful();
+    }
+
     public function test_scan_command_falls_back_to_repository_when_live_collector_is_empty(): void
     {
         $repo = $this->app->make(\Lynx\Scout\Contracts\FindingRepositoryContract::class);
