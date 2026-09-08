@@ -1,6 +1,6 @@
 {
     "name": "rlash18/lynx-scout",
-    "description": "Automated performance intelligence and recommendations for Laravel 13.",
+    "description": "Automated performance intelligence and recommendations for Laravel 12 and 13.",
     "license": "MIT",
     "type": "library",
     "authors": [

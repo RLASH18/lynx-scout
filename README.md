@@ -5,7 +5,7 @@
 <h1 align="center">LYNX SCOUT</h1>
 
 <p align="center">
-  <strong>Automated Performance Intelligence and Actionable Recommendations for Laravel 13</strong>
+  <strong>Automated Performance Intelligence and Actionable Recommendations for Laravel 12 & 13</strong>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.0.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
-  <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-13.x-ff2d20.svg?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 13"></a>
+  <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-12.x%20%7C%2013.x-ff2d20.svg?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 12 & 13"></a>
   <a href="https://php.net"><img src="https://img.shields.io/badge/PHP-8.3%20%7C%208.4-777bb4.svg?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.3+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10b981.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
@@ -214,8 +214,9 @@ php artisan lynx:compare baseline latest --fail-on-regression --threshold=15
 ## Security and Privacy
 
 Lynx Scout is designed from the ground up for strict data privacy:
-- **Binding Masking:** Sensitive SQL parameters (passwords, auth tokens, JWTs, credit cards, bcrypt hashes) are automatically redacted with `********`.
-- **Payload Truncation:** Large payloads exceeding 512 characters are truncated to protect worker memory.
+- **Binding Masking:** Sensitive SQL parameters (passwords, auth tokens, JWTs, credit cards, Bcrypt, and Argon2id hashes) and PEM private keys are automatically redacted with `********`.
+- **Custom Sensitive Keywords:** Add custom field names to redact via `config('lynx.query.hidden_patterns', ['tax_id', 'ssn'])`.
+- **Payload Truncation:** Large payloads exceeding 512 characters are securely truncated to protect worker memory.
 - **Zero Request Body Logging:** Headers, bearer tokens, cookies, and raw request bodies are never recorded or stored.
 - **100% On-Premises:** All data lives inside your local `storage/lynx` folder. Zero telemetry leaves your server.
 
@@ -236,11 +237,29 @@ return [
         'duplicate_threshold' => 2,
         'n_plus_one_threshold' => 3,
         'sanitize_bindings' => true,
+        'hidden_patterns' => ['ssn', 'tax_id', 'national_id'],
     ],
 
     'request' => [
         'enabled' => true,
         'slow_threshold' => 500.0, // ms
+    ],
+
+    'collectors' => [
+        'max_queries' => (int) env('LYNX_MAX_QUERIES', 1000),
+        'max_requests' => (int) env('LYNX_MAX_REQUESTS', 500),
+        'max_queue_jobs' => (int) env('LYNX_MAX_QUEUE_JOBS', 500),
+    ],
+
+    'callers' => [
+        'enabled' => env('LYNX_CALLERS_ENABLED', true),
+        'sample_rate' => (float) env('LYNX_CALLERS_SAMPLE_RATE', 1.0),
+        'ignored_namespaces' => [
+            'Illuminate\\',
+            'Lynx\\Scout\\',
+            'Laravel\\',
+            'Symfony\\',
+        ],
     ],
 
     'sampling' => [
@@ -256,13 +275,57 @@ return [
 
 ---
 
+## Extensibility: Custom Detectors
+
+You can create custom detectors by implementing `Lynx\Scout\Contracts\DetectorContract` and tagging them into Laravel's service container:
+
+```php
+namespace App\Detectors;
+
+use Lynx\Scout\Contracts\DetectorContract;
+use Lynx\Scout\Data\Finding;
+use Lynx\Scout\Data\FindingType;
+use Lynx\Scout\Data\Severity;
+
+class UnindexedSearchDetector implements DetectorContract
+{
+    public function detect(array $records): array
+    {
+        $findings = [];
+        foreach ($records as $query) {
+            if (str_contains($query->sql, 'LIKE \'%') {
+                $findings[] = Finding::create(
+                    FindingType::SlowQuery,
+                    Severity::High,
+                    'Leading wildcard query detected',
+                    'Leading wildcards prevent B-tree index utilization.',
+                    ['sql' => $query->sql]
+                );
+            }
+        }
+        return $findings;
+    }
+}
+```
+
+Register your detector in any Service Provider:
+
+```php
+// In AppServiceProvider::register()
+$this->app->tag([
+    \App\Detectors\UnindexedSearchDetector::class,
+], 'lynx.detectors.query');
+```
+
+---
+
 ## Testing
 
-Lynx Scout is thoroughly verified with **70 tests and 268 assertions** on Laravel 13 and PHP 8.4:
+Lynx Scout is thoroughly verified with **92 tests and 320 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
 
 ```bash
 composer test
-# OK (70 tests, 268 assertions)
+# OK (92 tests, 320 assertions)
 ```
 
 ---
