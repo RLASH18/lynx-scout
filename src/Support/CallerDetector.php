@@ -16,6 +16,8 @@ class CallerDetector
         'Lynx\\Scout\\',
         'Laravel\\',
         'Symfony\\',
+        'PHPUnit\\',
+        'Orchestra\\',
     ];
 
     /**
@@ -50,11 +52,13 @@ class CallerDetector
                     }
                 }
 
-                if (! $ignored) {
-                    $func = $frame['function'] ?? '';
-                    $line = $frame['line'] ?? 0;
-                    return "{$class}@{$func}:{$line}";
+                if ($ignored) {
+                    continue;
                 }
+
+                $func = $frame['function'] ?? '';
+                $line = $frame['line'] ?? 0;
+                return "{$class}@{$func}:{$line}";
             }
 
             if ($file !== null && ! str_contains($file, 'vendor') && ! str_contains($file, 'src/')) {
