@@ -5,6 +5,20 @@ All notable changes to `rlash18/lynx-scout` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-09
+
+### Added
+- Termwind CLI command suite redesign featuring enclosed dashboard cards, healthbar widgets, and box-drawing tables.
+- Tagged container architecture allowing custom detectors to be registered via `$this->app->tag([...], 'lynx.detectors.query')`.
+- Configurable in-memory collector limits (`lynx.collectors.max_queries`, `max_requests`, `max_queue_jobs`).
+- Caller detection sampling (`lynx.callers.sample_rate`), enable/disable toggle, and custom ignored namespaces.
+- Configurable impact scoring severity weights (`lynx.scoring.weights`).
+- Argon2id and Argon2i hash redaction, PEM private key masking, and custom hidden patterns in `BindingSanitizer`.
+- Safe JSON validation using native PHP 8.3 `json_validate()` in repository drivers.
+- In-memory LRU cache eviction and `flushCache()` in `SqlNormalizer` for Laravel Octane / FrankenPHP memory safety.
+- Expanded test suite to 92 tests and 320 assertions with dedicated tests for detectors, normalizer, and storage edge cases.
+- Comprehensive configuration and custom detector documentation for Laravel 12 and 13.
+
 ## [1.0.0] - 2026-09-08
 
 ### Added

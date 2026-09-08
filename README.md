@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.0.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
+  <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.1.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
   <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-12.x%20%7C%2013.x-ff2d20.svg?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 12 & 13"></a>
   <a href="https://php.net"><img src="https://img.shields.io/badge/PHP-8.3%20%7C%208.4-777bb4.svg?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.3+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10b981.svg?style=for-the-badge" alt="MIT License"></a>

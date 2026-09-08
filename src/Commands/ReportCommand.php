@@ -52,7 +52,7 @@ class ReportCommand extends Command
         if ($this->option('json')) {
             $payload = [
                 'package' => 'rlash18/lynx-scout',
-                'version' => '0.1.0',
+                'version' => LynxCli::VERSION,
                 'generated_at' => (new \DateTimeImmutable())->format(\DateTimeImmutable::ATOM),
                 'summary' => [
                     'total_findings' => count($findings),

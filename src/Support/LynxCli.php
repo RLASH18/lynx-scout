@@ -8,6 +8,8 @@ use function Termwind\render;
 
 class LynxCli
 {
+    public const VERSION = '1.1.0';
+
     public const CARD_WIDTH = 68;
 
     /**
@@ -16,6 +18,7 @@ class LynxCli
     public static function header(string $badge = '', ?string $subtitle = null): void
     {
         $sub = $subtitle ?? 'Performance Intelligence · Laravel';
+        $version = self::VERSION;
 
         if ($badge !== '') {
             $badgeLen = strlen($badge) + 2;
@@ -25,7 +28,7 @@ class LynxCli
             $dashes = str_repeat('─', $dashesCount);
 
             $topLine = <<<HTML
-                <div><span class="text-gray-700">┌──</span> <span class="px-1 bg-amber-500 text-black font-bold">Lynx Scout</span> <span class="text-gray-500 font-bold">v1.0.0</span> <span class="text-gray-700">{$dashes}</span> <span class="px-1 bg-amber-600 text-black font-bold uppercase">{$badge}</span><span class="text-gray-700">──┐</span></div>
+                <div><span class="text-gray-700">┌──</span> <span class="px-1 bg-amber-500 text-black font-bold">Lynx Scout</span> <span class="text-gray-500 font-bold">v{$version}</span> <span class="text-gray-700">{$dashes}</span> <span class="px-1 bg-amber-600 text-black font-bold uppercase">{$badge}</span><span class="text-gray-700">──┐</span></div>
             HTML;
         } else {
             $leftLen = 24;
@@ -33,7 +36,7 @@ class LynxCli
             $dashes = str_repeat('─', $dashesCount);
 
             $topLine = <<<HTML
-                <div><span class="text-gray-700">┌──</span> <span class="px-1 bg-amber-500 text-black font-bold">Lynx Scout</span> <span class="text-gray-500 font-bold">v1.0.0</span> <span class="text-gray-700">{$dashes}┐</span></div>
+                <div><span class="text-gray-700">┌──</span> <span class="px-1 bg-amber-500 text-black font-bold">Lynx Scout</span> <span class="text-gray-500 font-bold">v{$version}</span> <span class="text-gray-700">{$dashes}┐</span></div>
             HTML;
         }
 
