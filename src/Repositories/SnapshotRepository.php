@@ -25,14 +25,23 @@ class SnapshotRepository
      */
     public function save(PerformanceSnapshot $snapshot): string
     {
+        if (! is_dir($this->directory)) {
+            if (! @mkdir($this->directory, 0755, true) && ! is_dir($this->directory)) {
+                // directory fallback
+            }
+        }
+
         $filename = $snapshot->getId() . '.json';
         $fullPath = $this->directory . DIRECTORY_SEPARATOR . $filename;
+        $encoded = json_encode($snapshot->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-        @file_put_contents($fullPath, json_encode($snapshot->toArray(), JSON_PRETTY_PRINT), LOCK_EX);
+        if ($encoded !== false) {
+            file_put_contents($fullPath, $encoded, LOCK_EX);
 
-        // Also save/update latest pointer
-        $latestPath = $this->directory . DIRECTORY_SEPARATOR . 'latest.json';
-        @file_put_contents($latestPath, json_encode($snapshot->toArray(), JSON_PRETTY_PRINT), LOCK_EX);
+            // Also save/update latest pointer
+            $latestPath = $this->directory . DIRECTORY_SEPARATOR . 'latest.json';
+            file_put_contents($latestPath, $encoded, LOCK_EX);
+        }
 
         return $fullPath;
     }
@@ -49,8 +58,12 @@ class SnapshotRepository
             return null;
         }
 
-        $content = @file_get_contents($fullPath);
-        if ($content === false) {
+        $content = file_get_contents($fullPath);
+        if ($content === false || trim($content) === '') {
+            return null;
+        }
+
+        if (function_exists('json_validate') && ! json_validate($content)) {
             return null;
         }
 
@@ -59,7 +72,11 @@ class SnapshotRepository
             return null;
         }
 
-        return PerformanceSnapshot::fromArray($data);
+        try {
+            return PerformanceSnapshot::fromArray($data);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -85,9 +102,22 @@ class SnapshotRepository
                 continue;
             }
 
-            $content = @file_get_contents($file);
-            if ($content !== false && ($data = json_decode($content, true)) && is_array($data)) {
-                $snapshots[] = PerformanceSnapshot::fromArray($data);
+            $content = file_get_contents($file);
+            if ($content === false || trim($content) === '') {
+                continue;
+            }
+
+            if (function_exists('json_validate') && ! json_validate($content)) {
+                continue;
+            }
+
+            $data = json_decode($content, true);
+            if (is_array($data)) {
+                try {
+                    $snapshots[] = PerformanceSnapshot::fromArray($data);
+                } catch (\Throwable) {
+                    continue;
+                }
             }
         }
 

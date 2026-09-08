@@ -86,4 +86,39 @@ class FindingStorageTest extends TestCase
         $repo->clear();
         $this->assertEmpty($repo->all());
     }
+
+    public function test_file_repository_handles_corrupted_json_gracefully(): void
+    {
+        $repo = new FileFindingRepository(storagePath: $this->tempPath);
+        $file = $this->tempPath . DIRECTORY_SEPARATOR . 'findings.json';
+
+        file_put_contents($file, '{ INVALID JSON ... NOT CLOSED');
+
+        $this->assertEmpty($repo->all());
+        $this->assertNull($repo->find('any-id'));
+    }
+
+    public function test_file_repository_skips_partially_corrupted_finding_items(): void
+    {
+        $repo = new FileFindingRepository(storagePath: $this->tempPath);
+        $file = $this->tempPath . DIRECTORY_SEPARATOR . 'findings.json';
+
+        $finding = Finding::create(
+            type: FindingType::SlowQuery,
+            severity: Severity::High,
+            title: 'Valid Finding',
+            description: 'Valid description',
+            evidence: [],
+            id: 'valid-1',
+        );
+
+        $validData = $finding->toArray();
+        $invalidData = ['corrupted_item_without_required_fields' => true];
+
+        file_put_contents($file, json_encode([$validData, $invalidData, 'string_instead_of_array']));
+
+        $all = $repo->all();
+        $this->assertCount(1, $all);
+        $this->assertEquals('valid-1', $all[0]->getId());
+    }
 }

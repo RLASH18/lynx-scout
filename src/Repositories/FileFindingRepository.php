@@ -100,7 +100,15 @@ class FileFindingRepository implements FindingRepositoryContract
         $findings = [];
 
         foreach ($raw as $item) {
-            $findings[] = $this->hydrate($item);
+            if (! is_array($item)) {
+                continue;
+            }
+
+            try {
+                $findings[] = $this->hydrate($item);
+            } catch (\Throwable) {
+                continue;
+            }
         }
 
         return $findings;
@@ -112,8 +120,12 @@ class FileFindingRepository implements FindingRepositoryContract
     public function find(string $id): ?Finding
     {
         foreach ($this->loadRaw() as $item) {
-            if (($item['id'] ?? '') === $id) {
-                return $this->hydrate($item);
+            if (is_array($item) && ($item['id'] ?? '') === $id) {
+                try {
+                    return $this->hydrate($item);
+                } catch (\Throwable) {
+                    return null;
+                }
             }
         }
 
@@ -201,8 +213,12 @@ class FileFindingRepository implements FindingRepositoryContract
             return [];
         }
 
-        $content = @file_get_contents($this->filePath);
+        $content = file_get_contents($this->filePath);
         if ($content === false || trim($content) === '') {
+            return [];
+        }
+
+        if (function_exists('json_validate') && ! json_validate($content)) {
             return [];
         }
 
@@ -216,7 +232,17 @@ class FileFindingRepository implements FindingRepositoryContract
      */
     private function writeRaw(array $data): void
     {
-        @file_put_contents($this->filePath, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
+        $dir = dirname($this->filePath);
+        if (! is_dir($dir)) {
+            if (! @mkdir($dir, 0755, true) && ! is_dir($dir)) {
+                return;
+            }
+        }
+
+        $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($encoded !== false) {
+            file_put_contents($this->filePath, $encoded, LOCK_EX);
+        }
     }
 
     /**
@@ -226,6 +252,10 @@ class FileFindingRepository implements FindingRepositoryContract
      */
     private function hydrate(array $item): Finding
     {
+        if (empty($item['title']) && empty($item['id'])) {
+            throw new \InvalidArgumentException('Malformed finding record: missing title and id.');
+        }
+
         $severityVal = $item['severity'] ?? 'medium';
         $severity = Severity::tryFrom($severityVal) ?? Severity::Medium;
         $typeVal = $item['type'] ?? 'slow_query';
