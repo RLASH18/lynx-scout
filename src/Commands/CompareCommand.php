@@ -7,6 +7,10 @@ namespace Lynx\Scout\Commands;
 use Illuminate\Console\Command;
 use Lynx\Scout\Analyzers\RegressionComparator;
 use Lynx\Scout\Repositories\SnapshotRepository;
+use Lynx\Scout\Support\LynxCli;
+
+use function Termwind\render;
+use function Termwind\renderUsing;
 
 class CompareCommand extends Command
 {
@@ -33,13 +37,20 @@ class CompareCommand extends Command
      */
     public function handle(SnapshotRepository $repo, RegressionComparator $comparator): int
     {
+        renderUsing($this->output);
+
         $beforeId = $this->argument('before');
         $afterId = $this->argument('after');
 
         if ($beforeId === null || $afterId === null) {
             $snapshots = $repo->all();
             if (count($snapshots) < 2) {
-                $this->error('At least two snapshots are required to perform a comparison. Run `php artisan lynx:snapshot` to capture baselines.');
+                render(<<<'HTML'
+                    <div class="my-1">
+                        <span class="px-1 bg-red-500 text-black font-bold">ERROR</span>
+                        <span class="ml-1 text-red-400">At least two snapshots are required to perform a comparison. Run `php artisan lynx:snapshot` to capture baselines.</span>
+                    </div>
+                HTML);
                 return Command::FAILURE;
             }
 
@@ -66,52 +77,90 @@ class CompareCommand extends Command
 
         $comparison = $comparator->compare($before, $after);
 
-        $this->newLine();
-        $this->info('Performance Regression');
-        $this->newLine();
+        LynxCli::header('REGRESSION', 'Snapshot Delta Telemetry');
+
+        render(<<<'HTML'
+            <div class="my-1">
+                <span class="px-2 bg-amber-500 text-black font-bold">Performance Regression</span>
+            </div>
+        HTML);
 
         $routes = $comparison['routes'] ?? [];
         if (empty($routes)) {
-            $this->line('No common route benchmarks found between the two snapshots.');
-            $this->newLine();
+            render(<<<'HTML'
+                <div class="text-gray-400 my-1">No common route benchmarks found between the two snapshots.</div>
+            HTML);
             return Command::SUCCESS;
         }
 
         foreach ($routes as $route => $data) {
-            $this->line($route);
-            $this->newLine();
-
-            $this->line('Before:');
-            $this->line(sprintf('%.0fms', $data['before_duration_ms']));
-            $this->newLine();
-
-            $this->line('After:');
-            $this->line(sprintf('%.0fms', $data['after_duration_ms']));
-            $this->newLine();
-
+            $routeEscaped = htmlspecialchars((string) $route, ENT_QUOTES, 'UTF-8');
+            $beforeDuration = sprintf('%.0fms', $data['before_duration_ms']);
+            $afterDuration = sprintf('%.0fms', $data['after_duration_ms']);
             $prefix = $data['duration_delta_pct'] >= 0 ? '+' : '';
-            $this->line('Regression:');
-            $this->line(sprintf('%s%.0f%%', $prefix, $data['duration_delta_pct']));
-            $this->newLine();
+            $regressionPct = sprintf('%s%.0f%%', $prefix, $data['duration_delta_pct']);
+            $queriesDiff = sprintf('%.0f → %.0f', $data['before_queries'], $data['after_queries']);
+            $isRegression = (bool) $data['is_regression'];
 
-            $this->line('Queries:');
-            $this->line(sprintf('%.0f → %.0f', $data['before_queries'], $data['after_queries']));
-            $this->newLine();
+            $statusBadge = $isRegression
+                ? '<span class="px-1 bg-amber-500 text-black font-bold mr-1">[!]</span><span class="text-amber-400 font-bold">Regression detected</span>'
+                : '<span class="px-1 bg-green-500 text-black font-bold mr-1">✓</span><span class="text-green-400 font-bold">Performance stable</span>';
 
-            $this->line('Status:');
-            if ($data['is_regression']) {
-                $this->line('<fg=yellow;options=bold>⚠ Regression detected</>');
-            } else {
-                $this->line('<info>✓ Performance stable</info>');
-            }
+            $regressionColor = $isRegression ? 'text-red-400' : 'text-green-400';
 
-            $this->newLine();
-            $this->line('────────────────────────────────');
-            $this->newLine();
+            render(<<<HTML
+                <div class="mt-1 font-bold text-white">{$routeEscaped}</div>
+            HTML);
+
+            render(<<<'HTML'
+                <div class="text-gray-400">Before:</div>
+            HTML);
+
+            render(<<<HTML
+                <div class="text-white font-bold">{$beforeDuration}</div>
+            HTML);
+
+            render(<<<'HTML'
+                <div class="text-gray-400">After:</div>
+            HTML);
+
+            render(<<<HTML
+                <div class="text-white font-bold">{$afterDuration}</div>
+            HTML);
+
+            render(<<<'HTML'
+                <div class="text-gray-400">Regression:</div>
+            HTML);
+
+            render(<<<HTML
+                <div class="{$regressionColor} font-bold">{$regressionPct}</div>
+            HTML);
+
+            render(<<<'HTML'
+                <div class="text-gray-400">Queries:</div>
+            HTML);
+
+            render(<<<HTML
+                <div class="text-white font-bold">{$queriesDiff}</div>
+            HTML);
+
+            render(<<<'HTML'
+                <div class="text-gray-400">Status:</div>
+            HTML);
+
+            render(<<<HTML
+                <div>{$statusBadge}</div>
+                <hr class="text-gray-700 my-1" />
+            HTML);
         }
 
         if ($this->option('fail-on-regression') && ($comparison['has_regression'] ?? false)) {
-            $this->error('CI Check Failed: One or more performance regression thresholds were exceeded.');
+            render(<<<'HTML'
+                <div class="my-1">
+                    <span class="px-1 bg-red-500 text-black font-bold">FAIL</span>
+                    <span class="ml-1 text-red-400">CI Check Failed: One or more performance regression thresholds were exceeded.</span>
+                </div>
+            HTML);
             return Command::FAILURE;
         }
 

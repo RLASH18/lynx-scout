@@ -15,7 +15,8 @@
         "illuminate/database": "^12.0 || ^13.0",
         "illuminate/console": "^12.0 || ^13.0",
         "illuminate/contracts": "^12.0 || ^13.0",
-        "illuminate/http": "^12.0 || ^13.0"
+        "illuminate/http": "^12.0 || ^13.0",
+        "nunomaduro/termwind": "^2.0"
     },
     "require-dev": {
         "orchestra/testbench": "^11.0",

@@ -7,6 +7,10 @@ namespace Lynx\Scout\Commands;
 use Illuminate\Console\Command;
 use Lynx\Scout\Reports\ReportGenerator;
 use Lynx\Scout\Services\LynxScanner;
+use Lynx\Scout\Support\LynxCli;
+
+use function Termwind\render;
+use function Termwind\renderUsing;
 
 class ReportCommand extends Command
 {
@@ -67,6 +71,12 @@ class ReportCommand extends Command
 
             return Command::SUCCESS;
         }
+
+        renderUsing($this->output);
+
+        LynxCli::header('REPORT', 'Performance Intelligence Dossier');
+        $health = LynxCli::computeHealth($findings);
+        LynxCli::healthbar($health);
 
         $reportText = $generator->generate($findings);
 

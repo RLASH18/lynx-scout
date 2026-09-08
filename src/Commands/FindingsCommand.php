@@ -9,6 +9,9 @@ use Illuminate\Console\Command;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Data\Finding;
 use Lynx\Scout\Services\LynxScanner;
+use Lynx\Scout\Support\LynxCli;
+use function Termwind\render;
+use function Termwind\renderUsing;
 
 class FindingsCommand extends Command
 {
@@ -35,6 +38,10 @@ class FindingsCommand extends Command
      */
     public function handle(FindingRepositoryContract $repository, LynxScanner $scanner): int
     {
+        renderUsing($this->output);
+
+        LynxCli::header('FINDINGS', 'Historical Finding Archives');
+
         $findings = $repository->all();
 
         // If repository is empty, run live scan to discover any active findings
@@ -76,7 +83,13 @@ class FindingsCommand extends Command
         $displayed = array_slice($findings, 0, $limit);
 
         if (empty($displayed)) {
-            $this->info('No findings found matching the criteria.');
+            renderUsing($this->output);
+            render(<<<'HTML'
+                <div class="my-1">
+                    <span class="px-1 bg-gray-700 text-gray-300 font-bold">INFO</span>
+                    <span class="ml-1 text-gray-400">No findings found matching the criteria.</span>
+                </div>
+            HTML);
             return Command::SUCCESS;
         }
 
@@ -97,7 +110,8 @@ class FindingsCommand extends Command
         $this->newLine();
         $this->table(
             ['ID', 'Severity', 'Type', 'Title', 'Occurrences', 'Score', 'Detected At'],
-            $rows
+            $rows,
+            'box'
         );
         $this->newLine();
 

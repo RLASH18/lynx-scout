@@ -32,7 +32,8 @@ class FindingsCommandTest extends TestCase
                 ['ID', 'Severity', 'Type', 'Title', 'Occurrences', 'Score', 'Detected At'],
                 [
                     ['find-slow-1', 'HIGH', 'slow_query', 'Slow user query', '1', '0.0 (Medium)', date('Y-m-d H:i:s')],
-                ]
+                ],
+                'box'
             )
             ->assertSuccessful();
     }
