@@ -39,12 +39,34 @@ class SqlNormalizer
 
         $result = trim($normalized);
 
-        if (count(self::$cache) >= 500) {
-            self::$cache = [];
+        $maxCache = (int) config('lynx.normalizer.cache_size', 500);
+
+        // Evict oldest entry when cache is full (LRU)
+        if (count(self::$cache) >= $maxCache) {
+            $oldestKey = array_key_first(self::$cache);
+            if ($oldestKey !== null) {
+                unset(self::$cache[$oldestKey]);
+            }
         }
 
         self::$cache[$sql] = $result;
 
         return $result;
+    }
+
+    /**
+     * Flush in-memory normalization cache (useful for Octane worker resets & tests).
+     */
+    public static function flushCache(): void
+    {
+        self::$cache = [];
+    }
+
+    /**
+     * Get current cache count.
+     */
+    public static function cacheCount(): int
+    {
+        return count(self::$cache);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lynx\Scout\Tests\Feature;
 
 use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Support\CallerDetector;
 use Lynx\Scout\Support\SqlNormalizer;
 use Lynx\Scout\Tests\TestCase;
 
@@ -41,5 +42,34 @@ class PerformanceOverheadTest extends TestCase
         $this->get('/test-quick');
 
         $this->assertCount(0, $collector->getRequests());
+    }
+
+    /**
+     * Test SQL normalizer LRU eviction and cache flush.
+     */
+    public function test_sql_normalizer_lru_cache_eviction_and_flush(): void
+    {
+        SqlNormalizer::flushCache();
+        $this->assertEquals(0, SqlNormalizer::cacheCount());
+
+        config(['lynx.normalizer.cache_size' => 10]);
+
+        for ($i = 0; $i < 20; $i++) {
+            SqlNormalizer::normalize("SELECT * FROM table_{$i} WHERE col = 1");
+        }
+
+        $this->assertEquals(10, SqlNormalizer::cacheCount());
+
+        SqlNormalizer::flushCache();
+        $this->assertEquals(0, SqlNormalizer::cacheCount());
+    }
+
+    /**
+     * Test caller detector respects disabled configuration.
+     */
+    public function test_caller_detector_disabled_returns_null(): void
+    {
+        config(['lynx.callers.enabled' => false]);
+        $this->assertNull(CallerDetector::detect());
     }
 }
