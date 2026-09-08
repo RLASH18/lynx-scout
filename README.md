@@ -58,18 +58,26 @@ php artisan vendor:publish --tag=lynx-config
 
 ### 3. Run Your First Scan
 ```bash
+# Scan recent application telemetry from storage
 php artisan lynx:scan
+
+# Or profile a specific endpoint directly from the CLI
+php artisan lynx:scan --route=/products
 ```
 
 ```text
-Lynx Scout
+┌──  Lynx Scout  v1.1.0 ───────────────────────────────  SCANNER ──┐
+│  Performance Intelligence · Laravel                              │
+└──────────────────────────────────────────────────────────────────┘
 
 Scanning application...
 
-✓ Requests analyzed
-✓ Queries analyzed
-✓ Performance patterns analyzed
-✓ Findings prioritized
+✓ Requests analyzed ......................................... PASSED
+✓ Queries analyzed .......................................... PASSED
+✓ Performance patterns analyzed ............................. PASSED
+✓ Findings prioritized ...................................... PASSED
+
+ HEALTH  [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■]  100%   OPTIMAL 
 
 3 findings detected.
 
@@ -99,57 +107,53 @@ Run php artisan lynx:report for detailed recommendations.
 
 ## Recommendations
 
-Every finding provides a structured breakdown explaining the cause and suggested solution:
+Every finding provides a structured breakdown explaining the cause, caller origin, and actionable copy-paste solution:
 
 ```text
-────────────────────────────────
-Critical
-────────────────────────────────
-N+1 query pattern detected
+[CRITICAL] (3 issues)
 
-Route:
-GET /api/orders
+#1 Duplicate database queries detected
+  Route: /products │ Caller: App\Services\ProductService@getAllProducts:23
+  Estimated Impact: High (Score: 77.8) │ 60x queries │ 20.08ms │ 98% conf.
 
-Occurrences:
-42
+  Recommendation: Review repeated database access and consider reducing redundant queries or caching results.
+  Why: Executing identical or near-identical queries repeatedly within the same request consumes unnecessary database CPU and I/O.
+  Example: Cache::remember('key', 60, fn () => Model::find($id));
 
-Duration:
-680.50ms
-
-Estimated Impact:
-Critical (Score: 92.4)
-
-Confidence:
-High confidence (96%)
-
-Recommendation:
-Review relationship loading and consider eager loading.
-
-Why:
-The same relationship query is executed repeatedly in loops, adding unnecessary round-trip latency.
-
-Example:
-Order::with('customer')->get();
-
-────────────────────────────────
+────────────────────────────────────────────────────────────────────
 ```
 
 ---
 
 ## Artisan Command Suite
 
-### 1. Live Runtime Scan
+### 1. Live Runtime Scan & Route Profiling
+Profile live HTTP routes or scan historical application telemetry:
 ```bash
+# Scan recent historical telemetry persisted in storage
 php artisan lynx:scan
+
+# Profile and scan a specific endpoint directly from the CLI
+php artisan lynx:scan --route=/products
+
+# Strict severity sections grouping
+php artisan lynx:scan --sections
 ```
 
-### 2. Detailed Performance Report
+> [!TIP]
+> Lynx Scout automatically normalizes Git Bash path conversions on Windows (e.g. `C:/Program Files/Git/products` -> `/products`), allowing seamless CLI profiling in any terminal.
+
+### 2. Detailed Performance Dossier Report
+Generate a rich, color-coded performance intelligence dossier:
 ```bash
-# Human-readable report
+# Interactive card report
 php artisan lynx:report
 
 # Filter by minimum severity
 php artisan lynx:report --min-severity=high
+
+# Output as unstyled plain text (for log files and terminal piping)
+php artisan lynx:report --plain
 
 # Machine-readable JSON output (ideal for CI/CD or custom dashboards)
 php artisan lynx:report --json
@@ -170,34 +174,42 @@ php artisan lynx:findings --recent
 ### 4. Performance Baselines and Snapshots
 Capture your application's current health benchmark before making changes:
 ```bash
+# Profile an endpoint and lock its benchmark into a snapshot
+php artisan lynx:snapshot --route=/products --name=before-opt
+
+# Or capture current application baseline state
 php artisan lynx:snapshot --name=v1.2-baseline
 ```
 
 ### 5. Regression Comparison and CI Gating
 Compare two performance snapshots to catch speed degradations:
 ```bash
-php artisan lynx:compare v1.2-baseline v1.3-release
+# Compare specific snapshots by name
+php artisan lynx:compare before-opt after-opt
+
+# Or compare the latest two snapshots automatically
+php artisan lynx:compare
 ```
 
 ```text
 Performance Regression
 
-/api/orders
+/products
 
 Before:
-184ms
+120ms
 
 After:
-327ms
+18ms
 
 Regression:
-+78%
+-85%
 
 Queries:
-18 → 46
+151 → 3
 
 Status:
-[!] Regression detected
+✓ Performance stable
 ```
 
 #### Prevent Regressions in CI Pipelines:
@@ -321,11 +333,11 @@ $this->app->tag([
 
 ## Testing
 
-Lynx Scout is thoroughly verified with **92 tests and 320 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
+Lynx Scout is thoroughly verified with **96 tests and 332 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
 
 ```bash
 composer test
-# OK (92 tests, 320 assertions)
+# OK (96 tests, 332 assertions)
 ```
 
 ---
