@@ -153,4 +153,35 @@ class EdgeCasesTest extends TestCase
         $collector->reset();
         $this->assertCount(0, $collector->getQueries());
     }
+
+    /**
+     * Test custom detector registration via tagged container binding.
+     */
+    public function test_custom_detector_via_tagged_container(): void
+    {
+        $customDetector = new class implements \Lynx\Scout\Contracts\DetectorContract {
+            public function detect(array $records): array
+            {
+                return [
+                    Finding::create(
+                        FindingType::SlowQuery,
+                        Severity::Critical,
+                        'Custom Plugin Finding',
+                        'Detected by tagged detector',
+                        'custom-evidence'
+                    ),
+                ];
+            }
+        };
+
+        $this->app->instance('custom.test.detector', $customDetector);
+        $this->app->tag(['custom.test.detector'], 'lynx.detectors.query');
+
+        /** @var LynxScanner $scanner */
+        $scanner = $this->app->make(LynxScanner::class);
+        $findings = $scanner->scan(false);
+
+        $customFindings = array_filter($findings, fn ($f) => $f->getTitle() === 'Custom Plugin Finding');
+        $this->assertNotEmpty($customFindings);
+    }
 }

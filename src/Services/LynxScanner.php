@@ -9,35 +9,45 @@ use Lynx\Scout\Analyzers\PerformanceCorrelator;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
+use Lynx\Scout\Contracts\DetectorContract;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Data\Finding;
-use Lynx\Scout\Detectors\CacheCandidateDetector;
-use Lynx\Scout\Detectors\DuplicateQueryDetector;
-use Lynx\Scout\Detectors\NPlusOneDetector;
-use Lynx\Scout\Detectors\QueuePerformanceDetector;
-use Lynx\Scout\Detectors\SlowQueryDetector;
-use Lynx\Scout\Detectors\SlowRequestDetector;
 use Lynx\Scout\Recommendations\RecommendationEngine;
 use Lynx\Scout\Scoring\ImpactScorer;
 
 class LynxScanner
 {
+    /** @var list<DetectorContract> */
+    private readonly array $queryDetectors;
+
+    /** @var list<DetectorContract> */
+    private readonly array $requestDetectors;
+
+    /** @var list<DetectorContract> */
+    private readonly array $queueDetectors;
+
+    /**
+     * @param iterable<int, DetectorContract> $queryDetectors
+     * @param iterable<int, DetectorContract> $requestDetectors
+     * @param iterable<int, DetectorContract> $queueDetectors
+     */
     public function __construct(
         private readonly QueryCollector $queryCollector,
         private readonly RequestCollector $requestCollector,
         private readonly QueueCollector $queueCollector,
-        private readonly SlowQueryDetector $slowQueryDetector,
-        private readonly DuplicateQueryDetector $duplicateQueryDetector,
-        private readonly NPlusOneDetector $nPlusOneDetector,
-        private readonly SlowRequestDetector $slowRequestDetector,
-        private readonly CacheCandidateDetector $cacheCandidateDetector,
         private readonly ApplicationHealthAnalyzer $healthAnalyzer,
-        private readonly QueuePerformanceDetector $queueDetector,
         private readonly PerformanceCorrelator $correlator,
         private readonly ImpactScorer $scorer,
         private readonly RecommendationEngine $recommendationEngine,
         private readonly FindingRepositoryContract $repository,
-    ) {}
+        iterable $queryDetectors = [],
+        iterable $requestDetectors = [],
+        iterable $queueDetectors = [],
+    ) {
+        $this->queryDetectors = is_array($queryDetectors) ? array_values($queryDetectors) : array_values(iterator_to_array($queryDetectors));
+        $this->requestDetectors = is_array($requestDetectors) ? array_values($requestDetectors) : array_values(iterator_to_array($requestDetectors));
+        $this->queueDetectors = is_array($queueDetectors) ? array_values($queueDetectors) : array_values(iterator_to_array($queueDetectors));
+    }
 
     /**
      * Perform full performance scan and return prioritized findings.
@@ -53,25 +63,19 @@ class LynxScanner
         $rawFindings = [];
 
         // 1. Query-level detectors
-        $rawFindings = array_merge(
-            $rawFindings,
-            $this->slowQueryDetector->detect($queries),
-            $this->duplicateQueryDetector->detect($queries),
-            $this->nPlusOneDetector->detect($queries),
-            $this->cacheCandidateDetector->detect($queries)
-        );
+        foreach ($this->queryDetectors as $detector) {
+            $rawFindings = array_merge($rawFindings, $detector->detect($queries));
+        }
 
         // 2. Request-level detectors
-        $rawFindings = array_merge(
-            $rawFindings,
-            $this->slowRequestDetector->detect($requests)
-        );
+        foreach ($this->requestDetectors as $detector) {
+            $rawFindings = array_merge($rawFindings, $detector->detect($requests));
+        }
 
         // 3. Queue-level detectors
-        $rawFindings = array_merge(
-            $rawFindings,
-            $this->queueDetector->detect($jobs)
-        );
+        foreach ($this->queueDetectors as $detector) {
+            $rawFindings = array_merge($rawFindings, $detector->detect($jobs));
+        }
 
         // 4. Application health checks
         $rawFindings = array_merge(

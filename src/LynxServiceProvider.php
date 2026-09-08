@@ -6,6 +6,8 @@ namespace Lynx\Scout;
 
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\ServiceProvider;
+use Lynx\Scout\Analyzers\ApplicationHealthAnalyzer;
+use Lynx\Scout\Analyzers\PerformanceCorrelator;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\QueueCollector;
 use Lynx\Scout\Collectors\RequestCollector;
@@ -15,9 +17,19 @@ use Lynx\Scout\Commands\ReportCommand;
 use Lynx\Scout\Commands\ScanCommand;
 use Lynx\Scout\Commands\SnapshotCommand;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
+use Lynx\Scout\Detectors\CacheCandidateDetector;
+use Lynx\Scout\Detectors\DuplicateQueryDetector;
+use Lynx\Scout\Detectors\NPlusOneDetector;
+use Lynx\Scout\Detectors\QueuePerformanceDetector;
+use Lynx\Scout\Detectors\SlowQueryDetector;
+use Lynx\Scout\Detectors\SlowRequestDetector;
 use Lynx\Scout\Http\Middleware\LynxPerformanceMiddleware;
+use Lynx\Scout\Recommendations\RecommendationEngine;
 use Lynx\Scout\Repositories\FileFindingRepository;
 use Lynx\Scout\Repositories\MemoryFindingRepository;
+use Lynx\Scout\Repositories\SnapshotRepository;
+use Lynx\Scout\Scoring\ImpactScorer;
+use Lynx\Scout\Services\LynxScanner;
 
 class LynxServiceProvider extends ServiceProvider
 {
@@ -55,9 +67,40 @@ class LynxServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(\Lynx\Scout\Repositories\SnapshotRepository::class, function (): \Lynx\Scout\Repositories\SnapshotRepository {
-            return new \Lynx\Scout\Repositories\SnapshotRepository(
+        $this->app->singleton(SnapshotRepository::class, function (): SnapshotRepository {
+            return new SnapshotRepository(
                 storagePath: (string) config('lynx.storage.path', storage_path('lynx'))
+            );
+        });
+
+        $this->app->tag([
+            SlowQueryDetector::class,
+            DuplicateQueryDetector::class,
+            NPlusOneDetector::class,
+            CacheCandidateDetector::class,
+        ], 'lynx.detectors.query');
+
+        $this->app->tag([
+            SlowRequestDetector::class,
+        ], 'lynx.detectors.request');
+
+        $this->app->tag([
+            QueuePerformanceDetector::class,
+        ], 'lynx.detectors.queue');
+
+        $this->app->singleton(LynxScanner::class, function ($app): LynxScanner {
+            return new LynxScanner(
+                queryCollector: $app->make(QueryCollector::class),
+                requestCollector: $app->make(RequestCollector::class),
+                queueCollector: $app->make(QueueCollector::class),
+                healthAnalyzer: $app->make(ApplicationHealthAnalyzer::class),
+                correlator: $app->make(PerformanceCorrelator::class),
+                scorer: $app->make(ImpactScorer::class),
+                recommendationEngine: $app->make(RecommendationEngine::class),
+                repository: $app->make(FindingRepositoryContract::class),
+                queryDetectors: $app->tagged('lynx.detectors.query'),
+                requestDetectors: $app->tagged('lynx.detectors.request'),
+                queueDetectors: $app->tagged('lynx.detectors.queue'),
             );
         });
     }
