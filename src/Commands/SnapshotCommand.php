@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Lynx\Scout\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
 use Lynx\Scout\Services\SnapshotManager;
 use Lynx\Scout\Support\LynxCli;
 
@@ -18,7 +20,9 @@ class SnapshotCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'lynx:snapshot {--name= : Custom identifier for the snapshot}';
+    protected $signature = 'lynx:snapshot
+                            {--name= : Custom identifier for the snapshot}
+                            {--route= : Profile an internal application route before capturing the snapshot}';
 
     /**
      * The console command description.
@@ -32,11 +36,35 @@ class SnapshotCommand extends Command
      */
     public function handle(SnapshotManager $manager): int
     {
+        renderUsing($this->output);
+
+        $rawRoute = $this->option('route');
+        if ($rawRoute) {
+            $route = (string) $rawRoute;
+            // Normalize Git Bash POSIX-to-Windows path translation (e.g. C:/Program Files/Git/products -> /products)
+            if (preg_match('#^[A-Za-z]:/(?:.*?/)?(?:Git|msys\d*)/(.*)$#i', $route, $matches)) {
+                $route = '/' . ltrim($matches[1], '/');
+            } else {
+                $route = '/' . ltrim($route, '/');
+            }
+
+            try {
+                $kernel = $this->laravel->make(Kernel::class);
+                $request = Request::create($route, 'GET');
+                $response = $kernel->handle($request);
+                if (method_exists($kernel, 'terminate')) {
+                    $kernel->terminate($request, $response);
+                }
+            } catch (\Throwable $e) {
+                render(<<<HTML
+                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$e->getMessage()}</div>
+                HTML);
+            }
+        }
+
         $customName = $this->option('name');
         $snapshot = $manager->capture($customName ? (string) $customName : null);
         $metrics = $snapshot->getMetrics();
-
-        renderUsing($this->output);
 
         LynxCli::header('SNAPSHOT', 'Performance Benchmark Baseline');
 
@@ -70,6 +98,15 @@ class SnapshotCommand extends Command
                 <div><span class="text-green-500 font-bold mr-1">✓</span><span class="text-gray-400">Max Impact Score:</span><span class="text-white font-bold ml-1">{$maxImp}</span></div>
             </div>
         HTML);
+
+        if ($totQ === 0 && ! $rawRoute) {
+            render(<<<'HTML'
+                <div class="mt-2 text-gray-500">
+                    Notice: 0 queries were captured in this standalone CLI process.
+                    Tip: Pass <span class="text-amber-400 font-bold">--route=/your-route</span> (e.g. php artisan lynx:snapshot --route=/products) to profile and capture an endpoint baseline.
+                </div>
+            HTML);
+        }
 
         render(<<<'HTML'
             <div class="mt-2 text-gray-400">
