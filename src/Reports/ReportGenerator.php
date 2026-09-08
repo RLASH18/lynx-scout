@@ -71,22 +71,22 @@ class ReportGenerator
                 }
 
                 if ($route !== null) {
-                    $lines[] = "Route:\n{$route}\n";
+                    $lines[] = "Route: {$route}";
                 }
 
                 if ($occurrences !== null) {
-                    $lines[] = "Occurrences:\n{$occurrences}\n";
+                    $lines[] = "Occurrences: {$occurrences}";
                 }
 
                 if ($duration !== null) {
-                    $lines[] = sprintf("Duration:\n%.2fms\n", (float) $duration);
+                    $lines[] = sprintf("Duration: %.2fms", (float) $duration);
                 }
 
-                $lines[] = sprintf("Estimated Impact:\n%s (Score: %.1f)\n", $f->getImpact(), $f->getScore());
-                $lines[] = sprintf("Confidence:\n%s (%d%%)\n", $f->getConfidenceLabel(), (int) ($f->getConfidence() * 100));
+                $lines[] = sprintf("Estimated Impact: %s (Score: %.1f)", $f->getImpact(), $f->getScore());
+                $lines[] = sprintf("Confidence: %s (%d%%)", $f->getConfidenceLabel(), (int) ($f->getConfidence() * 100));
 
                 if ($f->getRecommendation() !== null) {
-                    $lines[] = "{$f->getRecommendation()}\n";
+                    $lines[] = "Recommendation: {$f->getRecommendation()}";
                 }
 
                 $lines[] = self::DIVIDER;
