@@ -24,6 +24,10 @@ class BindingSanitizer
         'cvv',
         'ssn',
         'private_key',
+        'access_token',
+        'refresh_token',
+        'passphrase',
+        'credential',
     ];
 
     /**
@@ -53,21 +57,33 @@ class BindingSanitizer
 
             // Check sensitive value shapes (JWTs, hashes, private keys)
             if (is_string($value)) {
+                // Private keys / PEM blocks
+                if (str_contains($value, '-----BEGIN ') && str_contains($value, 'PRIVATE KEY-----')) {
+                    $sanitized[$key] = '******** [REDACTED PRIVATE KEY]';
+                    continue;
+                }
+
                 // JWT Token shape (starts with eyJ... and has 2 dots)
                 if (str_starts_with($value, 'eyJ') && substr_count($value, '.') === 2) {
                     $sanitized[$key] = '******** [REDACTED JWT]';
                     continue;
                 }
 
-                // Bcrypt hash ($2y$... or $2a$...)
-                if (str_starts_with($value, '$2y$') || str_starts_with($value, '$2a$')) {
+                // Hashes: Bcrypt ($2y$, $2a$, $2b$) and Argon2 ($argon2i$, $argon2id$)
+                if (
+                    str_starts_with($value, '$2y$')
+                    || str_starts_with($value, '$2a$')
+                    || str_starts_with($value, '$2b$')
+                    || str_starts_with($value, '$argon2i$')
+                    || str_starts_with($value, '$argon2id$')
+                ) {
                     $sanitized[$key] = '******** [REDACTED HASH]';
                     continue;
                 }
 
                 // Truncate excessively long strings to preserve memory and prevent huge leaks
                 if (strlen($value) > 512) {
-                    $sanitized[$key] = substr($value, 0, 96) . '... [TRUNCATED]';
+                    $sanitized[$key] = substr($value, 0, 64) . '... [TRUNCATED]';
                     continue;
                 }
             }
