@@ -43,4 +43,33 @@ class ScanCommandTest extends TestCase
             ->expectsOutputToContain('Slow database query detected')
             ->assertSuccessful();
     }
+
+    public function test_scan_command_profiles_specified_route(): void
+    {
+        $this->app['router']->get('/bench-target', function () {
+            DB::select('SELECT 1');
+            return response()->json(['status' => 'ok']);
+        });
+
+        $this->artisan('lynx:scan', ['--route' => '/bench-target'])
+            ->expectsOutputToContain('bench-target')
+            ->assertSuccessful();
+    }
+
+    public function test_scan_command_falls_back_to_repository_when_live_collector_is_empty(): void
+    {
+        $repo = $this->app->make(\Lynx\Scout\Contracts\FindingRepositoryContract::class);
+        $repo->save(\Lynx\Scout\Data\Finding::create(
+            type: \Lynx\Scout\Data\FindingType::SlowQuery,
+            severity: \Lynx\Scout\Data\Severity::Critical,
+            title: 'Stored historical slow query',
+            description: 'A query took too long to execute.',
+            evidence: ['query' => 'SELECT 1'],
+        ));
+
+        $this->artisan('lynx:scan')
+            ->expectsOutputToContain('1 finding detected.')
+            ->expectsOutputToContain('Stored historical slow query')
+            ->assertSuccessful();
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Lynx\Scout\Commands;
 
 use Illuminate\Console\Command;
+use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Reports\ReportGenerator;
 use Lynx\Scout\Services\LynxScanner;
 use Lynx\Scout\Support\LynxCli;
@@ -33,9 +34,13 @@ class ReportCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(LynxScanner $scanner, ReportGenerator $generator): int
+    public function handle(LynxScanner $scanner, ReportGenerator $generator, FindingRepositoryContract $repository): int
     {
         $findings = $scanner->scan();
+
+        if (empty($findings)) {
+            $findings = $repository->all();
+        }
 
         $minSeverity = $this->option('min-severity');
         if ($minSeverity !== null) {

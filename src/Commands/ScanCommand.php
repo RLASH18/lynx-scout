@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Lynx\Scout\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Data\Severity;
 use Lynx\Scout\Services\LynxScanner;
 use Lynx\Scout\Support\LynxCli;
@@ -19,7 +22,9 @@ class ScanCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'lynx:scan {--sections : Group output strictly by severity sections}';
+    protected $signature = 'lynx:scan
+                            {--sections : Group output strictly by severity sections}
+                            {--route= : Profile and scan a specific internal application route}';
 
     /**
      * The console command description.
@@ -31,17 +36,41 @@ class ScanCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(LynxScanner $scanner): int
+    public function handle(LynxScanner $scanner, FindingRepositoryContract $repository): int
     {
         renderUsing($this->output);
 
         LynxCli::header('SCANNER');
 
-        render(<<<'HTML'
-            <div class="text-gray-400 mb-1">Scanning application...</div>
-        HTML);
+        $route = $this->option('route');
+        if ($route) {
+            render(<<<HTML
+                <div class="text-gray-400 mb-1">Dispatching and profiling route <span class="text-amber-400 font-bold">{$route}</span>...</div>
+            HTML);
+
+            try {
+                $kernel = $this->laravel->make(Kernel::class);
+                $request = Request::create((string) $route, 'GET');
+                $response = $kernel->handle($request);
+                if (method_exists($kernel, 'terminate')) {
+                    $kernel->terminate($request, $response);
+                }
+            } catch (\Throwable $e) {
+                render(<<<HTML
+                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$e->getMessage()}</div>
+                HTML);
+            }
+        } else {
+            render(<<<'HTML'
+                <div class="text-gray-400 mb-1">Scanning application...</div>
+            HTML);
+        }
 
         $findings = $scanner->scan();
+
+        if (empty($findings) && ! $route) {
+            $findings = $repository->all();
+        }
 
         $items = [
             'Requests analyzed',

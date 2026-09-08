@@ -35,5 +35,6 @@ abstract class TestCase extends OrchestraTestCase
             'database' => ':memory:',
             'prefix' => '',
         ]);
+        $app['config']->set('lynx.storage.driver', 'memory');
     }
 }

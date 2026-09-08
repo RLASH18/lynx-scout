@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Lynx\Scout\Collectors\QueryCollector;
 use Lynx\Scout\Collectors\RequestCollector;
 use Lynx\Scout\Data\RequestRecord;
+use Lynx\Scout\Services\LynxScanner;
 use Symfony\Component\HttpFoundation\Response;
 
 class LynxPerformanceMiddleware
@@ -70,5 +71,23 @@ class LynxPerformanceMiddleware
         $this->requestCollector->record($record);
 
         return $response;
+    }
+
+    /**
+     * Perform post-response telemetry analysis and persist findings.
+     */
+    public function terminate(Request $request, Response $response): void
+    {
+        if (! config('lynx.enabled', true)) {
+            return;
+        }
+
+        try {
+            if (app()->bound(LynxScanner::class)) {
+                app(LynxScanner::class)->scan(persist: true);
+            }
+        } catch (\Throwable) {
+            // Silently ignore post-response errors
+        }
     }
 }
