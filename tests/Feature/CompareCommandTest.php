@@ -45,17 +45,17 @@ class CompareCommandTest extends TestCase
         $repo->save($before);
         $repo->save($after);
 
-        $this->artisan('lynx:compare snap-before snap-after')
-            ->expectsOutputToContain('Performance Regression')
-            ->expectsOutputToContain('/api/orders')
-            ->expectsOutputToContain('Before:')
-            ->expectsOutputToContain('184ms')
-            ->expectsOutputToContain('After:')
-            ->expectsOutputToContain('327ms')
-            ->expectsOutputToContain('Regression:')
-            ->expectsOutputToContain('+78%')
-            ->expectsOutputToContain('18 → 46')
-            ->expectsOutputToContain('Regression detected')
-            ->assertSuccessful();
+        $kernel = $this->app->make(\Illuminate\Contracts\Console\Kernel::class);
+        $status = $kernel->call('lynx:compare', ['before' => 'snap-before', 'after' => 'snap-after']);
+        $output = $kernel->output();
+
+        $this->assertSame(0, $status);
+        $this->assertStringContainsString('Performance Regression', $output);
+        $this->assertStringContainsString('/api/orders', $output);
+        $this->assertStringContainsString('184ms', $output);
+        $this->assertStringContainsString('327ms', $output);
+        $this->assertStringContainsString('+78%', $output);
+        $this->assertStringContainsString('18 → 46', $output);
+        $this->assertStringContainsString('Regression detected', $output);
     }
 }

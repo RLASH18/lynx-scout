@@ -109,47 +109,16 @@ class CompareCommand extends Command
             $regressionColor = $isRegression ? 'text-red-400' : 'text-green-400';
 
             render(<<<HTML
-                <div class="mt-1 font-bold text-white">{$routeEscaped}</div>
-            HTML);
-
-            render(<<<'HTML'
-                <div class="text-gray-400">Before:</div>
-            HTML);
-
-            render(<<<HTML
-                <div class="text-white font-bold">{$beforeDuration}</div>
-            HTML);
-
-            render(<<<'HTML'
-                <div class="text-gray-400">After:</div>
-            HTML);
-
-            render(<<<HTML
-                <div class="text-white font-bold">{$afterDuration}</div>
-            HTML);
-
-            render(<<<'HTML'
-                <div class="text-gray-400">Regression:</div>
-            HTML);
-
-            render(<<<HTML
-                <div class="{$regressionColor} font-bold">{$regressionPct}</div>
-            HTML);
-
-            render(<<<'HTML'
-                <div class="text-gray-400">Queries:</div>
-            HTML);
-
-            render(<<<HTML
-                <div class="text-white font-bold">{$queriesDiff}</div>
-            HTML);
-
-            render(<<<'HTML'
-                <div class="text-gray-400">Status:</div>
-            HTML);
-
-            render(<<<HTML
-                <div>{$statusBadge}</div>
+                <div class="mt-1 mb-1">
+                    <div class="font-bold text-white">Route:&nbsp;<span class="text-cyan-400">{$routeEscaped}</span></div>
+                    <div class="pl-2">
+                        <div><span class="text-gray-400">Before:</span>&nbsp;<span class="text-white font-bold">{$beforeDuration}</span></div>
+                        <div><span class="text-gray-400">After:</span>&nbsp;<span class="text-white font-bold">{$afterDuration}</span></div>
+                        <div><span class="text-gray-400">Regression:</span>&nbsp;<span class="{$regressionColor} font-bold">{$regressionPct}</span></div>
+                        <div><span class="text-gray-400">Queries:</span>&nbsp;<span class="text-white font-bold">{$queriesDiff}</span></div>
+                        <div><span class="text-gray-400">Status:</span>&nbsp;{$statusBadge}</div>
+                    </div>
+                </div>
                 <hr class="text-gray-700 my-1" />
             HTML);
         }

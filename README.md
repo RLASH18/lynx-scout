@@ -119,8 +119,6 @@ Every finding provides a structured breakdown explaining the cause, caller origi
   Recommendation: Review repeated database access and consider reducing redundant queries or caching results.
   Why: Executing identical or near-identical queries repeatedly within the same request consumes unnecessary database CPU and I/O.
   Example: Cache::remember('key', 60, fn () => Model::find($id));
-
-────────────────────────────────────────────────────────────────────
 ```
 
 ---
@@ -194,22 +192,12 @@ php artisan lynx:compare
 ```text
 Performance Regression
 
-/products
-
-Before:
-120ms
-
-After:
-18ms
-
-Regression:
--85%
-
-Queries:
-151 → 3
-
-Status:
-✓ Performance stable
+Route: /products
+  Before: 120ms
+  After: 18ms
+  Regression: -85%
+  Queries: 151 → 3
+  Status: [✓] Performance stable
 ```
 
 #### Prevent Regressions in CI Pipelines:
@@ -333,11 +321,11 @@ $this->app->tag([
 
 ## Testing
 
-Lynx Scout is thoroughly verified with **96 tests and 332 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
+Lynx Scout is thoroughly verified with **96 tests and 329 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
 
 ```bash
 composer test
-# OK (96 tests, 332 assertions)
+# OK (96 tests, 329 assertions)
 ```
 
 ---
