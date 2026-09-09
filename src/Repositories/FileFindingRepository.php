@@ -14,9 +14,13 @@ class FileFindingRepository implements FindingRepositoryContract
 {
     private readonly string $filePath;
 
+    private readonly string $lockPath;
+
+    private readonly int $maxFindings;
+
     public function __construct(
         ?string $storagePath = null,
-        private readonly int $maxFindings = 500,
+        int $maxFindings = 500,
     ) {
         $path = $storagePath ?? (string) config('lynx.storage.path', storage_path('lynx'));
         if (! is_dir($path)) {
@@ -24,6 +28,8 @@ class FileFindingRepository implements FindingRepositoryContract
         }
 
         $this->filePath = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . 'findings.json';
+        $this->lockPath = $this->filePath . '.lock';
+        $this->maxFindings = max(1, $maxFindings);
     }
 
     /**
@@ -45,7 +51,16 @@ class FileFindingRepository implements FindingRepositoryContract
             return;
         }
 
-        $stored = $this->loadRaw();
+        $lock = fopen($this->lockPath, 'c');
+        if ($lock === false || ! flock($lock, LOCK_EX)) {
+            if (is_resource($lock)) {
+                fclose($lock);
+            }
+            throw new \RuntimeException('Unable to lock Lynx Scout finding storage.');
+        }
+
+        try {
+            $stored = $this->loadRaw();
         $fingerprintMap = [];
 
         foreach ($stored as $idx => $item) {
@@ -61,15 +76,14 @@ class FileFindingRepository implements FindingRepositoryContract
 
             if (isset($fingerprintMap[$fp])) {
                 $idx = $fingerprintMap[$fp];
-                $stored[$idx]['occurrence_count'] = ($stored[$idx]['occurrence_count'] ?? 1) + 1;
+                $occurrenceCount = ($stored[$idx]['occurrence_count'] ?? 1) + 1;
+                $firstDetectedAt = $stored[$idx]['first_detected_at'] ?? ($stored[$idx]['detected_at'] ?? $now->format(DateTimeImmutable::ATOM));
+                $historicalId = $stored[$idx]['id'] ?? $finding->getId();
+                $stored[$idx] = array_replace($stored[$idx], $finding->toArray());
+                $stored[$idx]['id'] = $historicalId;
+                $stored[$idx]['first_detected_at'] = $firstDetectedAt;
+                $stored[$idx]['occurrence_count'] = $occurrenceCount;
                 $stored[$idx]['last_detected_at'] = $now->format(DateTimeImmutable::ATOM);
-                if ($finding->getScore() > ($stored[$idx]['score'] ?? 0.0)) {
-                    $stored[$idx]['score'] = $finding->getScore();
-                    $stored[$idx]['impact'] = $finding->getImpact();
-                }
-                if ($finding->getRecommendation() !== null) {
-                    $stored[$idx]['recommendation'] = $finding->getRecommendation();
-                }
             } else {
                 $data = $finding->toArray();
                 $data['fingerprint'] = $fp;
@@ -81,12 +95,34 @@ class FileFindingRepository implements FindingRepositoryContract
             }
         }
 
-        // Limit size to maxFindings
-        if (count($stored) > $this->maxFindings) {
-            $stored = array_slice($stored, -$this->maxFindings);
-        }
+            $retentionDays = (int) config('lynx.storage.retention_days', 0);
+            if ($retentionDays > 0) {
+                $cutoff = (new DateTimeImmutable())->modify("-{$retentionDays} days");
+                $stored = array_values(array_filter($stored, function (mixed $item) use ($cutoff): bool {
+                    if (! is_array($item)) {
+                        return false;
+                    }
 
-        $this->writeRaw($stored);
+                    try {
+                        $lastDetectedAt = new DateTimeImmutable((string) ($item['last_detected_at'] ?? $item['detected_at'] ?? 'now'));
+                    } catch (\Throwable) {
+                        return true;
+                    }
+
+                    return $lastDetectedAt >= $cutoff;
+                }));
+            }
+
+            // Limit size to maxFindings.
+            if (count($stored) > $this->maxFindings) {
+                $stored = array_slice($stored, -$this->maxFindings);
+            }
+
+            $this->writeRaw($stored);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     /**
@@ -196,12 +232,22 @@ class FileFindingRepository implements FindingRepositoryContract
      */
     private function fingerprint(Finding $finding): string
     {
-        $key = $finding->getType() . '|' . $finding->getTitle();
         $context = $finding->getContext();
         $uri = $context['uri'] ?? ($context['route'] ?? '');
         $caller = $context['caller'] ?? '';
 
-        return md5("{$key}|{$uri}|{$caller}");
+        $evidence = $finding->getEvidence();
+        $identity = [
+            'type' => $finding->getType(),
+            'title' => $finding->getTitle(),
+            'uri' => $uri,
+            'caller' => $caller,
+            'connection' => is_array($evidence) ? ($evidence['connection'] ?? ($context['connection'] ?? '')) : ($context['connection'] ?? ''),
+            'query_pattern' => is_array($evidence) ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? '')) : '',
+            'job_name' => is_array($evidence) ? ($evidence['job_name'] ?? '') : '',
+        ];
+
+        return hash('sha256', json_encode($identity, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -239,9 +285,21 @@ class FileFindingRepository implements FindingRepositoryContract
             }
         }
 
-        $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        if ($encoded !== false) {
-            file_put_contents($this->filePath, $encoded, LOCK_EX);
+        $encoded = json_encode(
+            $data,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR
+        );
+        $temporaryPath = $this->filePath . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        $written = file_put_contents($temporaryPath, $encoded, LOCK_EX) !== false;
+        $renamed = $written && @rename($temporaryPath, $this->filePath);
+        if (! $renamed && $written && file_exists($this->filePath)) {
+            @unlink($this->filePath);
+            $renamed = @rename($temporaryPath, $this->filePath);
+        }
+
+        if (! $renamed) {
+            @unlink($temporaryPath);
+            throw new \RuntimeException('Unable to persist Lynx Scout findings.');
         }
     }
 

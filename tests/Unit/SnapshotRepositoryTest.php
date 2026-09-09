@@ -117,4 +117,17 @@ class SnapshotRepositoryTest extends TestCase
         $this->assertEmpty($repo->all());
         $this->assertNull($repo->find('corrupted'));
     }
+
+    public function test_snapshot_identifiers_cannot_escape_storage_directory(): void
+    {
+        $repo = new SnapshotRepository(storagePath: $this->tempDir);
+        $snapshot = new PerformanceSnapshot(
+            id: '../outside',
+            createdAt: new DateTimeImmutable(),
+            metrics: [],
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $repo->save($snapshot);
+    }
 }

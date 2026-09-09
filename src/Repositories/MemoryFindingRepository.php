@@ -58,6 +58,14 @@ class MemoryFindingRepository implements FindingRepositoryContract
 
     public function prune(int $retentionDays): int
     {
-        return 0;
+        $cutoff = (new \DateTimeImmutable())->modify("-{$retentionDays} days");
+        $before = count($this->findings);
+
+        $this->findings = array_filter(
+            $this->findings,
+            fn (Finding $finding): bool => $finding->getDetectedAt() >= $cutoff
+        );
+
+        return $before - count($this->findings);
     }
 }

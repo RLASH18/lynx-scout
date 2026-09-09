@@ -25,6 +25,7 @@ class FindingStorageTest extends TestCase
     {
         if (is_dir($this->tempPath)) {
             @unlink($this->tempPath . DIRECTORY_SEPARATOR . 'findings.json');
+            @unlink($this->tempPath . DIRECTORY_SEPARATOR . 'findings.json.lock');
             @rmdir($this->tempPath);
         }
         parent::tearDown();
@@ -120,5 +121,68 @@ class FindingStorageTest extends TestCase
         $all = $repo->all();
         $this->assertCount(1, $all);
         $this->assertEquals('valid-1', $all[0]->getId());
+    }
+
+    public function test_different_query_patterns_on_same_route_have_distinct_fingerprints(): void
+    {
+        $repo = new FileFindingRepository(storagePath: $this->tempPath);
+
+        $findingA = Finding::create(
+            type: FindingType::SlowQuery,
+            severity: Severity::Medium,
+            title: 'Slow database query detected',
+            description: 'Query A',
+            evidence: ['query_pattern' => 'SELECT * FROM users WHERE id = ?'],
+            context: ['uri' => '/users'],
+            id: 'find-a',
+        );
+
+        $findingB = Finding::create(
+            type: FindingType::SlowQuery,
+            severity: Severity::High,
+            title: 'Slow database query detected',
+            description: 'Query B',
+            evidence: ['query_pattern' => 'SELECT * FROM orders WHERE user_id = ?'],
+            context: ['uri' => '/users'],
+            id: 'find-b',
+        );
+
+        $repo->saveMany([$findingA, $findingB]);
+
+        $this->assertCount(2, $repo->all());
+    }
+
+    public function test_reappearing_finding_updates_evidence_and_severity(): void
+    {
+        $repo = new FileFindingRepository(storagePath: $this->tempPath);
+
+        $initial = Finding::create(
+            type: FindingType::SlowQuery,
+            severity: Severity::Medium,
+            title: 'Slow database query detected',
+            description: 'Took 120ms',
+            evidence: ['query_pattern' => 'SELECT * FROM users', 'duration_ms' => 120.0],
+            context: ['uri' => '/users'],
+            id: 'orig-id',
+        );
+        $repo->save($initial);
+
+        $updated = Finding::create(
+            type: FindingType::SlowQuery,
+            severity: Severity::Critical,
+            title: 'Slow database query detected',
+            description: 'Took 3500ms',
+            evidence: ['query_pattern' => 'SELECT * FROM users', 'duration_ms' => 3500.0],
+            context: ['uri' => '/users'],
+            id: 'new-id',
+        );
+        $repo->save($updated);
+
+        $stored = $repo->all();
+        $this->assertCount(1, $stored);
+        $this->assertSame('orig-id', $stored[0]->getId());
+        $this->assertSame(Severity::Critical, $stored[0]->getSeverity());
+        $this->assertEquals(3500.0, $stored[0]->getEvidence()['duration_ms']);
+        $this->assertEquals(2, $stored[0]->getContext()['occurrence_count']);
     }
 }
