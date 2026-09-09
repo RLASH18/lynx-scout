@@ -38,16 +38,18 @@ class DuplicateQueryDetector implements DetectorContract
                 continue;
             }
 
-            $key = $record->getNormalizedSql();
+            $context = $record->getContext();
+            $requestId = (string) ($context['request_id'] ?? 'global');
+            $key = $requestId . '|' . $record->getConnectionName() . '|' . $record->getNormalizedSql();
             if (! isset($groups[$key])) {
                 $groups[$key] = [
                     'count' => 0,
                     'total_time' => 0.0,
                     'sample_sql' => $record->getSql(),
-                    'normalized_sql' => $key,
+                    'normalized_sql' => $record->getNormalizedSql(),
                     'caller' => $record->getCaller(),
                     'connection' => $record->getConnectionName(),
-                    'contexts' => [],
+                    'context' => $context,
                 ];
             }
 
@@ -81,20 +83,22 @@ class DuplicateQueryDetector implements DetectorContract
                 title: 'Duplicate database queries detected',
                 description: sprintf('Query pattern executed %d times totaling %.2fms.', $count, $totalTime),
                 evidence: [
-                    'query_pattern' => $pattern,
+                    'query_pattern' => $data['normalized_sql'],
                     'sample_sql' => $data['sample_sql'],
                     'occurrences' => $count,
                     'total_time_ms' => $totalTime,
                     'caller' => $data['caller'],
                     'threshold' => $minDuplicates,
+                    'request_id' => $data['context']['request_id'] ?? null,
                 ],
                 impact: $severity->label(),
                 recommendation: null,
                 confidence: 0.98,
-                context: [
+                context: array_merge($data['context'], [
                     'caller' => $data['caller'],
                     'connection' => $data['connection'],
-                ],
+                    'request_id' => $data['context']['request_id'] ?? null,
+                ]),
             );
         }
 

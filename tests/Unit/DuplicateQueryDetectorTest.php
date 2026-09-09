@@ -14,7 +14,7 @@ use Lynx\Scout\Tests\TestCase;
 
 class DuplicateQueryDetectorTest extends TestCase
 {
-    private function makeRecord(string $sql, float $timeMs = 5.0, ?string $caller = 'PostController@show'): QueryRecord
+    private function makeRecord(string $sql, float $timeMs = 5.0, ?string $caller = 'PostController@show', array $context = []): QueryRecord
     {
         return new QueryRecord(
             sql: $sql,
@@ -24,6 +24,7 @@ class DuplicateQueryDetectorTest extends TestCase
             executedAt: new DateTimeImmutable(),
             normalizedSql: SqlNormalizer::normalize($sql),
             caller: $caller,
+            context: $context,
         );
     }
 
@@ -94,6 +95,18 @@ class DuplicateQueryDetectorTest extends TestCase
         $records = [
             $this->makeRecord('SELECT 1'),
             $this->makeRecord('SELECT 1'),
+        ];
+
+        $this->assertEmpty($detector->detect($records));
+    }
+
+    public function test_queries_from_separate_requests_are_not_combined(): void
+    {
+        $detector = new DuplicateQueryDetector(threshold: 3);
+        $records = [
+            $this->makeRecord('SELECT * FROM users WHERE id = 1', 5.0, 'PostController@show', ['request_id' => 'req-1']),
+            $this->makeRecord('SELECT * FROM users WHERE id = 2', 5.0, 'PostController@show', ['request_id' => 'req-1']),
+            $this->makeRecord('SELECT * FROM users WHERE id = 3', 5.0, 'PostController@show', ['request_id' => 'req-2']),
         ];
 
         $this->assertEmpty($detector->detect($records));

@@ -33,7 +33,6 @@ class NPlusOneDetector implements DetectorContract
         $minExecutions = $this->threshold ?? (int) config('lynx.query.n_plus_one_threshold', 3);
 
         $patterns = [];
-        $selectCount = 0;
 
         foreach ($records as $record) {
             if (! $record instanceof QueryRecord) {
@@ -45,8 +44,10 @@ class NPlusOneDetector implements DetectorContract
                 continue;
             }
 
-            $selectCount++;
+            $context = $record->getContext();
+            $requestId = (string) ($context['request_id'] ?? 'global');
             $pattern = $record->getNormalizedSql();
+            $groupKey = $requestId . '|' . $record->getConnectionName() . '|' . $pattern;
 
             // Look for typical relational query indicators:
             // e.g. "where `id` = ?" or "where `user_id` = ?" or "where `..._id` in (?)"
@@ -55,21 +56,23 @@ class NPlusOneDetector implements DetectorContract
                 $pattern
             );
 
-            if (! isset($patterns[$pattern])) {
-                $patterns[$pattern] = [
+            if (! isset($patterns[$groupKey])) {
+                $patterns[$groupKey] = [
                     'count' => 0,
                     'total_time' => 0.0,
                     'sample_sql' => $sql,
+                    'normalized_sql' => $pattern,
                     'is_relational' => $isRelationalPattern,
                     'caller' => $record->getCaller(),
-                    'context' => $record->getContext(),
+                    'context' => $context,
+                    'connection' => $record->getConnectionName(),
                 ];
             }
 
-            $patterns[$pattern]['count']++;
-            $patterns[$pattern]['total_time'] += $record->getTimeMs();
-            if ($record->getCaller() && ! $patterns[$pattern]['caller']) {
-                $patterns[$pattern]['caller'] = $record->getCaller();
+            $patterns[$groupKey]['count']++;
+            $patterns[$groupKey]['total_time'] += $record->getTimeMs();
+            if ($record->getCaller() && ! $patterns[$groupKey]['caller']) {
+                $patterns[$groupKey]['caller'] = $record->getCaller();
             }
         }
 
@@ -106,19 +109,22 @@ class NPlusOneDetector implements DetectorContract
                 title: 'N+1 query pattern detected',
                 description: sprintf('Repeated relationship query executed %d times totaling %.2fms.', $count, $totalTime),
                 evidence: [
-                    'query_pattern' => $pattern,
+                    'query_pattern' => $data['normalized_sql'],
                     'sample_sql' => $data['sample_sql'],
                     'occurrences' => $count,
                     'total_time_ms' => $totalTime,
                     'route' => $route,
                     'caller' => $data['caller'],
                     'threshold' => $minExecutions,
+                    'request_id' => $data['context']['request_id'] ?? null,
                 ],
                 impact: $severity->label(),
                 recommendation: 'Review relationship loading and consider eager loading.',
                 confidence: round($confidence, 2),
                 context: array_merge($data['context'], [
                     'caller' => $data['caller'],
+                    'request_id' => $data['context']['request_id'] ?? null,
+                    'connection' => $data['connection'],
                 ]),
             );
         }

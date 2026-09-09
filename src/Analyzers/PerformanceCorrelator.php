@@ -41,14 +41,23 @@ class PerformanceCorrelator
 
             // Find related findings that match this request's route or URI
             $routeUri = $request->getUri();
+            $requestId = $request->getId();
             $matchingFindings = array_values(array_filter(
                 $findings,
-                function (Finding $f) use ($routeUri): bool {
+                function (Finding $f) use ($routeUri, $requestId): bool {
                     $evidence = $f->getEvidence();
+                    if (is_array($evidence) && isset($evidence['request_id'])) {
+                        return $evidence['request_id'] === $requestId;
+                    }
+
+                    $context = $f->getContext();
+                    if (isset($context['request_id'])) {
+                        return $context['request_id'] === $requestId;
+                    }
+
                     if (is_array($evidence) && isset($evidence['route']) && $evidence['route'] === $routeUri) {
                         return true;
                     }
-                    $context = $f->getContext();
                     return isset($context['uri']) && $context['uri'] === $routeUri;
                 }
             ));

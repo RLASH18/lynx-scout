@@ -90,4 +90,16 @@ class NPlusOneDetectorTest extends TestCase
 
         $this->assertEmpty($detector->detect($records));
     }
+
+    public function test_queries_from_separate_requests_are_not_combined(): void
+    {
+        $detector = new NPlusOneDetector(threshold: 3);
+        $records = [
+            $this->makeRecord('SELECT * FROM users WHERE id = 1', ['request_id' => 'one']),
+            $this->makeRecord('SELECT * FROM users WHERE id = 2', ['request_id' => 'one']),
+            $this->makeRecord('SELECT * FROM users WHERE id = 3', ['request_id' => 'two']),
+        ];
+
+        $this->assertEmpty($detector->detect($records));
+    }
 }

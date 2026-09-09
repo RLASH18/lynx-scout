@@ -74,6 +74,7 @@ class SlowRequestDetector implements DetectorContract
                     'uri' => $record->getUri(),
                     'method' => $record->getMethod(),
                     'status_code' => $record->getStatusCode(),
+                    'request_id' => $record->getId(),
                 ],
             );
         }

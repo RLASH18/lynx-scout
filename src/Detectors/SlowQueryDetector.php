@@ -65,6 +65,8 @@ class SlowQueryDetector implements DetectorContract
                     'threshold_ms' => $thresholdMs,
                     'connection' => $record->getConnectionName(),
                     'caller' => $record->getCaller(),
+                    'request_id' => $record->getContext()['request_id'] ?? null,
+                    'uri' => $record->getContext()['uri'] ?? null,
                 ],
                 impact: $severity->label(),
                 recommendation: null,
@@ -73,6 +75,8 @@ class SlowQueryDetector implements DetectorContract
                     'connection' => $record->getConnectionName(),
                     'caller' => $record->getCaller(),
                     'bindings' => $record->getBindings(),
+                    'request_id' => $record->getContext()['request_id'] ?? null,
+                    'uri' => $record->getContext()['uri'] ?? null,
                 ],
             );
         }
