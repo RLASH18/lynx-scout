@@ -262,6 +262,10 @@ return [
         ],
     ],
 
+    'normalizer' => [
+        'cache_size' => (int) env('LYNX_NORMALIZER_CACHE_SIZE', 500),
+    ],
+
     'sampling' => [
         'rate' => env('LYNX_SAMPLING_RATE', 1.0), // 0.1 for 10% sampling in heavy traffic
     ],
@@ -321,12 +325,14 @@ $this->app->tag([
 
 ## Testing
 
-Lynx Scout is thoroughly verified with **96 tests and 329 assertions** across Laravel 12, Laravel 13, and PHP 8.4:
+Lynx Scout is thoroughly verified with **109 tests and 354 assertions** across Laravel 12, Laravel 13, and PHP 8.3+:
 
 ```bash
 composer test
-# OK (96 tests, 329 assertions)
+# OK (109 tests, 354 assertions)
 ```
+
+The repository also runs the test suite automatically for PHP 8.3 and 8.4 through GitHub Actions.
 
 ---
 
