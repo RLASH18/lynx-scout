@@ -25,6 +25,8 @@ class RegressionComparator
         $afterRoutes = $after->getRoutePerformance();
 
         $routeComparisons = [];
+        $newRoutes = [];
+        $removedRoutes = [];
         $hasRegression = false;
 
         $allRouteKeys = array_unique(array_merge(array_keys($beforeRoutes), array_keys($afterRoutes)));
@@ -33,7 +35,13 @@ class RegressionComparator
             $bData = $beforeRoutes[$route] ?? null;
             $aData = $afterRoutes[$route] ?? null;
 
-            if ($bData === null || $aData === null) {
+            if ($bData === null) {
+                $newRoutes[] = $route;
+                continue;
+            }
+
+            if ($aData === null) {
+                $removedRoutes[] = $route;
                 continue;
             }
 
@@ -44,11 +52,11 @@ class RegressionComparator
 
             $durationDeltaPct = $bDuration > 0
                 ? round((($aDuration - $bDuration) / $bDuration) * 100, 1)
-                : 0.0;
+                : ($aDuration > 0 ? 100.0 : 0.0);
 
             $queryDeltaPct = $bQueries > 0
                 ? round((($aQueries - $bQueries) / $bQueries) * 100, 1)
-                : 0.0;
+                : ($aQueries > 0 ? 100.0 : 0.0);
 
             $isRouteRegression = ($durationDeltaPct >= $regThreshold) || ($queryDeltaPct >= $queryThreshold);
 
@@ -71,9 +79,16 @@ class RegressionComparator
         // Overall metrics comparison
         $bAvgReq = (float) ($beforeMetrics['average_request_duration_ms'] ?? 0.0);
         $aAvgReq = (float) ($afterMetrics['average_request_duration_ms'] ?? 0.0);
-        $avgDurationDeltaPct = $bAvgReq > 0 ? round((($aAvgReq - $bAvgReq) / $bAvgReq) * 100, 1) : 0.0;
+        $avgDurationDeltaPct = $bAvgReq > 0
+            ? round((($aAvgReq - $bAvgReq) / $bAvgReq) * 100, 1)
+            : ($aAvgReq > 0 ? 100.0 : 0.0);
+        $beforeQueries = (float) ($beforeMetrics['total_queries'] ?? 0.0);
+        $afterQueries = (float) ($afterMetrics['total_queries'] ?? 0.0);
+        $queryDeltaPct = $beforeQueries > 0
+            ? round((($afterQueries - $beforeQueries) / $beforeQueries) * 100, 1)
+            : ($afterQueries > 0 ? 100.0 : 0.0);
 
-        if ($avgDurationDeltaPct >= $regThreshold) {
+        if ($avgDurationDeltaPct >= $regThreshold || $queryDeltaPct >= $queryThreshold) {
             $hasRegression = true;
         }
 
@@ -85,12 +100,15 @@ class RegressionComparator
                 'before_avg_duration_ms' => $bAvgReq,
                 'after_avg_duration_ms' => $aAvgReq,
                 'duration_delta_pct' => $avgDurationDeltaPct,
-                'before_queries' => (int) ($beforeMetrics['total_queries'] ?? 0),
-                'after_queries' => (int) ($afterMetrics['total_queries'] ?? 0),
+                'before_queries' => (int) $beforeQueries,
+                'after_queries' => (int) $afterQueries,
+                'query_delta_pct' => $queryDeltaPct,
                 'before_findings' => (int) ($beforeMetrics['total_findings'] ?? 0),
                 'after_findings' => (int) ($afterMetrics['total_findings'] ?? 0),
             ],
             'routes' => $routeComparisons,
+            'new_routes' => $newRoutes,
+            'removed_routes' => $removedRoutes,
         ];
     }
 }

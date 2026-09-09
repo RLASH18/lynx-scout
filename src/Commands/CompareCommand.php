@@ -90,6 +90,11 @@ class CompareCommand extends Command
             render(<<<'HTML'
                 <div class="text-gray-400 my-1">No common route benchmarks found between the two snapshots.</div>
             HTML);
+            if ($this->option('fail-on-regression') && ($comparison['has_regression'] ?? false)) {
+                $this->error('CI Check Failed: Overall performance regression thresholds were exceeded.');
+                return Command::FAILURE;
+            }
+
             return Command::SUCCESS;
         }
 
