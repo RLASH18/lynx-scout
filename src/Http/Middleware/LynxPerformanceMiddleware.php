@@ -18,6 +18,7 @@ class LynxPerformanceMiddleware
     public function __construct(
         private readonly RequestCollector $requestCollector,
         private readonly QueryCollector $queryCollector,
+        private readonly LynxScanner $scanner,
     ) {}
 
     /**
@@ -34,41 +35,53 @@ class LynxPerformanceMiddleware
             return $next($request);
         }
 
+        $requestId = bin2hex(random_bytes(8));
         $startTime = microtime(true);
-        $startQueryCount = $this->queryCollector->count();
-        $startQueryTime = $this->queryCollector->totalTimeMs();
+        if (function_exists('memory_reset_peak_usage')) {
+            memory_reset_peak_usage();
+        }
+        $startMemory = memory_get_usage(false);
 
-        $this->queryCollector->setContext([
+        $this->queryCollector->beginScope([
+            'request_id' => $requestId,
             'uri' => '/' . ltrim($request->path(), '/'),
             'method' => $request->method(),
         ]);
 
-        $response = $next($request);
+        $response = null;
+        try {
+            $response = $next($request);
+        } finally {
+            $queryStats = $this->queryCollector->endScope();
+            $route = $request->route();
+            $routeName = is_object($route) && method_exists($route, 'getName') ? $route->getName() : null;
+            $action = is_object($route) && method_exists($route, 'getActionName') ? $route->getActionName() : null;
 
-        $route = $request->route();
-        $routeName = is_object($route) && method_exists($route, 'getName') ? $route->getName() : null;
-        $action = is_object($route) && method_exists($route, 'getActionName') ? $route->getActionName() : null;
+            $peakMemory = memory_get_peak_usage(false);
+            $memoryBytes = max(0, $peakMemory - $startMemory);
+            if ($memoryBytes === 0) {
+                $memoryBytes = memory_get_peak_usage(true);
+            }
 
-        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
-        $queryCount = max(0, $this->queryCollector->count() - $startQueryCount);
-        $queryTimeMs = round(max(0.0, $this->queryCollector->totalTimeMs() - $startQueryTime), 2);
-        $memoryBytes = memory_get_peak_usage(true);
+            $this->requestCollector->record(new RequestRecord(
+                id: $requestId,
+                method: $request->method(),
+                uri: '/' . ltrim($request->path(), '/'),
+                routeName: $routeName,
+                action: $action,
+                durationMs: round((microtime(true) - $startTime) * 1000, 2),
+                statusCode: $response?->getStatusCode() ?? 500,
+                queryCount: $queryStats['query_count'],
+                queryTimeMs: $queryStats['query_time_ms'],
+                memoryBytes: $memoryBytes,
+                requestedAt: new DateTimeImmutable(),
+                context: ['request_id' => $requestId],
+            ));
+        }
 
-        $record = new RequestRecord(
-            id: bin2hex(random_bytes(8)),
-            method: $request->method(),
-            uri: '/' . ltrim($request->path(), '/'),
-            routeName: $routeName,
-            action: $action,
-            durationMs: $durationMs,
-            statusCode: $response->getStatusCode(),
-            queryCount: $queryCount,
-            queryTimeMs: $queryTimeMs,
-            memoryBytes: $memoryBytes,
-            requestedAt: new DateTimeImmutable(),
-        );
-
-        $this->requestCollector->record($record);
+        if ($response === null) {
+            throw new \LogicException('The HTTP middleware pipeline did not return a response.');
+        }
 
         return $response;
     }
@@ -83,11 +96,13 @@ class LynxPerformanceMiddleware
         }
 
         try {
-            if (app()->bound(LynxScanner::class)) {
-                app(LynxScanner::class)->scan(persist: true);
+            $this->scanner->scan(persist: true);
+        } catch (\Throwable $exception) {
+            try {
+                report($exception);
+            } catch (\Throwable) {
+                // Telemetry must never change the application response.
             }
-        } catch (\Throwable) {
-            // Silently ignore post-response errors
         }
     }
 }

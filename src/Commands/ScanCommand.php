@@ -52,8 +52,9 @@ class ScanCommand extends Command
                 $route = '/' . ltrim($route, '/');
             }
 
+            $safeRoute = htmlspecialchars($route, ENT_QUOTES, 'UTF-8');
             render(<<<HTML
-                <div class="text-gray-400 mb-1">Dispatching and profiling route <span class="text-amber-400 font-bold">{$route}</span>...</div>
+                <div class="text-gray-400 mb-1">Dispatching and profiling route <span class="text-amber-400 font-bold">{$safeRoute}</span>...</div>
             HTML);
 
             try {
@@ -71,8 +72,9 @@ class ScanCommand extends Command
                     HTML);
                 }
             } catch (\Throwable $e) {
+                $safeMessage = htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
                 render(<<<HTML
-                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$e->getMessage()}</div>
+                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$safeMessage}</div>
                 HTML);
             }
         } else {

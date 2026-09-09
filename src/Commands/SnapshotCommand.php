@@ -56,22 +56,29 @@ class SnapshotCommand extends Command
                     $kernel->terminate($request, $response);
                 }
             } catch (\Throwable $e) {
+                $safeMessage = htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
                 render(<<<HTML
-                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$e->getMessage()}</div>
+                    <div class="text-red-500 font-bold mb-1">Failed to profile route: {$safeMessage}</div>
                 HTML);
             }
         }
 
         $customName = $this->option('name');
-        $snapshot = $manager->capture($customName ? (string) $customName : null);
+        try {
+            $snapshot = $manager->capture($customName ? (string) $customName : null);
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+            return Command::FAILURE;
+        }
         $metrics = $snapshot->getMetrics();
 
         LynxCli::header('SNAPSHOT', 'Performance Benchmark Baseline');
 
+        $safeSnapshotId = htmlspecialchars($snapshot->getId(), ENT_QUOTES, 'UTF-8');
         render(<<<HTML
             <div class="mt-1">
                 <span class="px-1 bg-amber-500 text-black font-bold">LOCKED</span>
-                <span class="ml-1 text-white font-bold">Performance snapshot captured: [{$snapshot->getId()}]</span>
+                <span class="ml-1 text-white font-bold">Performance snapshot captured: [{$safeSnapshotId}]</span>
             </div>
             <hr class="text-gray-700 my-1" />
         HTML);

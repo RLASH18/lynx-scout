@@ -100,4 +100,14 @@ class LynxScanner
 
         return $prioritized;
     }
+
+    /**
+     * Clear request and worker telemetry after a scan boundary.
+     */
+    public function resetCollectors(): void
+    {
+        $this->queryCollector->reset();
+        $this->requestCollector->reset();
+        $this->queueCollector->reset();
+    }
 }

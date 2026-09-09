@@ -35,13 +35,22 @@ class QueryCollector implements Countable
     private array $currentContext = [];
 
     /**
+     * Number and duration of queries observed in the active request scope.
+     */
+    private int $scopeQueryCount = 0;
+
+    private float $scopeQueryTimeMs = 0.0;
+
+    /**
      * Maximum queries stored in memory to prevent memory bloat.
      */
     private int $maxStoredQueries;
 
+    private int $droppedQueries = 0;
+
     public function __construct(?int $maxStoredQueries = null)
     {
-        $this->maxStoredQueries = $maxStoredQueries ?? (int) config('lynx.collectors.max_queries', 1000);
+        $this->maxStoredQueries = max(1, $maxStoredQueries ?? (int) config('lynx.collectors.max_queries', 1000));
     }
 
     /**
@@ -56,7 +65,7 @@ class QueryCollector implements Countable
         $this->isCollecting = true;
 
         DB::listen(function (QueryExecuted $event): void {
-            if (! $this->isCollecting) {
+            if (! $this->isCollecting || ! config('lynx.enabled', true) || ! config('lynx.query.enabled', true)) {
                 return;
             }
 
@@ -86,6 +95,41 @@ class QueryCollector implements Countable
     public function reset(): void
     {
         $this->queries = [];
+        $this->currentContext = [];
+        $this->scopeQueryCount = 0;
+        $this->scopeQueryTimeMs = 0.0;
+        $this->droppedQueries = 0;
+    }
+
+    /**
+     * Start a request-scoped query window.
+     *
+     * @param array<string, mixed> $context
+     */
+    public function beginScope(array $context): void
+    {
+        $this->currentContext = $context;
+        $this->scopeQueryCount = 0;
+        $this->scopeQueryTimeMs = 0.0;
+    }
+
+    /**
+     * Finish the active request-scoped query window and clear its context.
+     *
+     * @return array{query_count: int, query_time_ms: float}
+     */
+    public function endScope(): array
+    {
+        $stats = [
+            'query_count' => $this->scopeQueryCount,
+            'query_time_ms' => round($this->scopeQueryTimeMs, 2),
+        ];
+
+        $this->currentContext = [];
+        $this->scopeQueryCount = 0;
+        $this->scopeQueryTimeMs = 0.0;
+
+        return $stats;
     }
 
     /**
@@ -103,8 +147,12 @@ class QueryCollector implements Countable
      */
     public function record(QueryExecuted $event): void
     {
+        $this->scopeQueryCount++;
+        $this->scopeQueryTimeMs += (float) $event->time;
+
         if (count($this->queries) >= $this->maxStoredQueries) {
-            return;
+            array_shift($this->queries);
+            $this->droppedQueries++;
         }
 
         $recordBindings = (bool) config('lynx.query.record_bindings', true);
@@ -136,7 +184,8 @@ class QueryCollector implements Countable
     public function addRecord(QueryRecord $record): void
     {
         if (count($this->queries) >= $this->maxStoredQueries) {
-            return;
+            array_shift($this->queries);
+            $this->droppedQueries++;
         }
 
         $this->queries[] = $record;
@@ -158,6 +207,14 @@ class QueryCollector implements Countable
     public function count(): int
     {
         return count($this->queries);
+    }
+
+    /**
+     * Number of records evicted because the in-memory limit was reached.
+     */
+    public function getDroppedCount(): int
+    {
+        return $this->droppedQueries;
     }
 
     /**

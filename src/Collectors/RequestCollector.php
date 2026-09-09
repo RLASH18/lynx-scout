@@ -23,7 +23,7 @@ class RequestCollector implements Countable
 
     public function __construct(?int $maxStoredRequests = null)
     {
-        $this->maxStoredRequests = $maxStoredRequests ?? (int) config('lynx.collectors.max_requests', 500);
+        $this->maxStoredRequests = max(1, $maxStoredRequests ?? (int) config('lynx.collectors.max_requests', 500));
     }
 
     /**

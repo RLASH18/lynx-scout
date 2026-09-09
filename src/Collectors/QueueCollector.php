@@ -35,7 +35,7 @@ class QueueCollector implements Countable
 
     public function __construct(?int $maxStoredJobs = null)
     {
-        $this->maxStoredJobs = $maxStoredJobs ?? (int) config('lynx.collectors.max_queue_jobs', 500);
+        $this->maxStoredJobs = max(1, $maxStoredJobs ?? (int) config('lynx.collectors.max_queue_jobs', 500));
     }
 
     /**
