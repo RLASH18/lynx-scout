@@ -72,4 +72,16 @@ class RequestPerformanceCollectorTest extends TestCase
         $this->assertEquals('Slow HTTP request detected', $findings[0]->getTitle());
         $this->assertEquals('/test-slow', $findings[0]->getEvidence()['uri']);
     }
+
+    public function test_single_request_creates_single_request_profile_without_duplicate_middleware_execution(): void
+    {
+        /** @var RequestCollector $collector */
+        $collector = $this->app->make(RequestCollector::class);
+        $collector->reset();
+
+        $response = $this->get('/test-quick');
+        $response->assertStatus(200);
+
+        $this->assertCount(1, $collector->getRequests());
+    }
 }

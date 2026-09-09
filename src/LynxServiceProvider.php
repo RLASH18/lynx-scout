@@ -141,8 +141,6 @@ class LynxServiceProvider extends ServiceProvider
                 if ($this->app->bound('router')) {
                     $router = $this->app->make('router');
                     $router->aliasMiddleware('lynx.performance', LynxPerformanceMiddleware::class);
-                    $router->pushMiddlewareToGroup('web', LynxPerformanceMiddleware::class);
-                    $router->pushMiddlewareToGroup('api', LynxPerformanceMiddleware::class);
                 }
             }
 
