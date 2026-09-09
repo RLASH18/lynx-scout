@@ -43,12 +43,13 @@ class CacheCandidateDetector implements DetectorContract
                 continue;
             }
 
-            $key = $sql;
+            $key = $record->getConnectionName() . '|' . $record->getNormalizedSql();
             if (! isset($groups[$key])) {
                 $groups[$key] = [
                     'count' => 0,
                     'total_time' => 0.0,
                     'sql' => $sql,
+                    'normalized_sql' => $record->getNormalizedSql(),
                     'connection' => $record->getConnectionName(),
                     'caller' => $record->getCaller(),
                 ];
@@ -88,6 +89,7 @@ class CacheCandidateDetector implements DetectorContract
                     'average_duration_ms' => $avgDuration,
                     'total_time_ms' => $totalTime,
                     'caller' => $data['caller'],
+                    'normalized_sql' => $data['normalized_sql'],
                     'warning' => 'Verify data freshness and invalidation requirements before caching. Caching behavior is application and business-logic dependent.',
                 ],
                 impact: $severity->label(),
@@ -96,6 +98,7 @@ class CacheCandidateDetector implements DetectorContract
                 context: [
                     'connection' => $data['connection'],
                     'caller' => $data['caller'],
+                    'normalized_sql' => $data['normalized_sql'],
                     'warning' => 'Caching is business-logic dependent.',
                 ],
             );

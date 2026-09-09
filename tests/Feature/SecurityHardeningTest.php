@@ -87,4 +87,19 @@ class SecurityHardeningTest extends TestCase
         $this->assertEquals('********', $sanitized['credential']);
         $this->assertEquals('John Doe', $sanitized['public_name']);
     }
+
+    public function test_sanitizes_nested_bindings(): void
+    {
+        $sanitized = BindingSanitizer::sanitize([
+            'payload' => [
+                'password' => 'super-secret',
+                'profile' => ['token' => 'secret-token'],
+                'name' => 'Public Name',
+            ],
+        ]);
+
+        $this->assertSame('********', $sanitized['payload']['password']);
+        $this->assertSame('********', $sanitized['payload']['profile']['token']);
+        $this->assertSame('Public Name', $sanitized['payload']['name']);
+    }
 }

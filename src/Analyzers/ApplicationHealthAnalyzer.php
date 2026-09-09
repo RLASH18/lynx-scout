@@ -82,11 +82,12 @@ class ApplicationHealthAnalyzer
         }
 
         // 4. OPcache check
-        if ($isProduction && function_exists('opcache_get_status')) {
-            $opcacheEnabled = (bool) ini_get('opcache.enable');
-            $opcacheStatus = @opcache_get_status(false);
+        if ($isProduction) {
+            $opcacheAvailable = function_exists('opcache_get_status');
+            $opcacheEnabled = $opcacheAvailable && (bool) ini_get('opcache.enable');
+            $opcacheStatus = $opcacheAvailable ? @opcache_get_status(false) : false;
 
-            if (! $opcacheEnabled || $opcacheStatus === false) {
+            if (! $opcacheAvailable || ! $opcacheEnabled || $opcacheStatus === false) {
                 $findings[] = Finding::create(
                     type: FindingType::HealthIssue,
                     severity: Severity::High,

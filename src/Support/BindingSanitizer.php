@@ -44,7 +44,6 @@ class BindingSanitizer
         $sanitized = [];
 
         foreach ($bindings as $key => $value) {
-            // Check string keys (named bindings)
             if (is_string($key)) {
                 $lowerKey = strtolower($key);
                 foreach ($patterns as $pattern) {
@@ -55,42 +54,73 @@ class BindingSanitizer
                 }
             }
 
-            // Check sensitive value shapes (JWTs, hashes, private keys)
-            if (is_string($value)) {
-                // Private keys / PEM blocks
-                if (str_contains($value, '-----BEGIN ') && str_contains($value, 'PRIVATE KEY-----')) {
-                    $sanitized[$key] = '******** [REDACTED PRIVATE KEY]';
-                    continue;
-                }
-
-                // JWT Token shape (starts with eyJ... and has 2 dots)
-                if (str_starts_with($value, 'eyJ') && substr_count($value, '.') === 2) {
-                    $sanitized[$key] = '******** [REDACTED JWT]';
-                    continue;
-                }
-
-                // Hashes: Bcrypt ($2y$, $2a$, $2b$) and Argon2 ($argon2i$, $argon2id$)
-                if (
-                    str_starts_with($value, '$2y$')
-                    || str_starts_with($value, '$2a$')
-                    || str_starts_with($value, '$2b$')
-                    || str_starts_with($value, '$argon2i$')
-                    || str_starts_with($value, '$argon2id$')
-                ) {
-                    $sanitized[$key] = '******** [REDACTED HASH]';
-                    continue;
-                }
-
-                // Truncate excessively long strings to preserve memory and prevent huge leaks
-                if (strlen($value) > 512) {
-                    $sanitized[$key] = substr($value, 0, 64) . '... [TRUNCATED]';
-                    continue;
-                }
-            }
-
-            $sanitized[$key] = $value;
+            $sanitized[$key] = self::sanitizeValue($value, $patterns);
         }
 
         return $sanitized;
+    }
+
+    /**
+     * Sanitize scalar values and nested binding arrays.
+     *
+     * @param list<string> $patterns
+     */
+    private static function sanitizeValue(mixed $value, array $patterns, int $depth = 0): mixed
+    {
+        if (is_array($value) && $depth < 4) {
+            $nested = [];
+            foreach ($value as $key => $nestedValue) {
+                if (is_string($key) && self::matchesSensitiveKey($key, $patterns)) {
+                    $nested[$key] = '********';
+                } else {
+                    $nested[$key] = self::sanitizeValue($nestedValue, $patterns, $depth + 1);
+                }
+            }
+
+            return $nested;
+        }
+
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        if (str_contains($value, '-----BEGIN ') && str_contains($value, 'PRIVATE KEY-----')) {
+            return '******** [REDACTED PRIVATE KEY]';
+        }
+
+        if (str_starts_with($value, 'eyJ') && substr_count($value, '.') === 2) {
+            return '******** [REDACTED JWT]';
+        }
+
+        if (
+            str_starts_with($value, '$2y$')
+            || str_starts_with($value, '$2a$')
+            || str_starts_with($value, '$2b$')
+            || str_starts_with($value, '$argon2i$')
+            || str_starts_with($value, '$argon2id$')
+        ) {
+            return '******** [REDACTED HASH]';
+        }
+
+        return strlen($value) > 512
+            ? substr($value, 0, 64) . '... [TRUNCATED]'
+            : $value;
+    }
+
+    /**
+     * Determine whether a binding key contains a configured sensitive pattern.
+     *
+     * @param list<string> $patterns
+     */
+    private static function matchesSensitiveKey(string $key, array $patterns): bool
+    {
+        $lowerKey = strtolower($key);
+        foreach ($patterns as $pattern) {
+            if (str_contains($lowerKey, strtolower((string) $pattern))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

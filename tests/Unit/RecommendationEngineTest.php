@@ -78,4 +78,30 @@ class RecommendationEngineTest extends TestCase
         $this->assertNotNull($enriched[0]->getRecommendation());
         $this->assertNotNull($enriched[1]->getRecommendation());
     }
+
+    public function test_existing_recommendations_are_preserved(): void
+    {
+        $engine = new RecommendationEngine();
+        $finding = Finding::create(
+            FindingType::SlowQuery,
+            Severity::High,
+            'Custom detector finding',
+            'D',
+            'E',
+            recommendation: 'Use the detector-specific remediation.',
+        );
+
+        $enriched = $engine->enrich($finding);
+
+        $this->assertSame('Use the detector-specific remediation.', $enriched->getRecommendation());
+    }
+
+    public function test_recommendations_can_be_disabled(): void
+    {
+        config(['lynx.recommendations.enabled' => false]);
+        $engine = new RecommendationEngine();
+        $finding = Finding::create(FindingType::SlowQuery, Severity::Medium, 'Slow', 'D', 'E');
+
+        $this->assertNull($engine->enrich($finding)->getRecommendation());
+    }
 }

@@ -73,6 +73,14 @@ class RecommendationEngine
      */
     public function enrich(Finding $finding): Finding
     {
+        if (! (bool) config('lynx.recommendations.enabled', true)) {
+            return $finding;
+        }
+
+        if ($finding->getRecommendation() !== null) {
+            return $finding;
+        }
+
         $advice = $this->advise($finding);
 
         return $finding->withRecommendation($advice->format());

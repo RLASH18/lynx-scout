@@ -20,7 +20,11 @@ class SqlNormalizer
     public static function normalize(string $sql): string
     {
         if (isset(self::$cache[$sql])) {
-            return self::$cache[$sql];
+            $cached = self::$cache[$sql];
+            unset(self::$cache[$sql]);
+            self::$cache[$sql] = $cached;
+
+            return $cached;
         }
 
         $normalized = trim($sql);
@@ -39,9 +43,8 @@ class SqlNormalizer
 
         $result = trim($normalized);
 
-        $maxCache = (int) config('lynx.normalizer.cache_size', 500);
+        $maxCache = max(1, (int) config('lynx.normalizer.cache_size', 500));
 
-        // Evict oldest entry when cache is full (LRU)
         if (count(self::$cache) >= $maxCache) {
             $oldestKey = array_key_first(self::$cache);
             if ($oldestKey !== null) {
