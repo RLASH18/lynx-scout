@@ -66,9 +66,12 @@ class NPlusOneDetector implements DetectorContract
                     'caller' => $record->getCaller(),
                     'context' => $context,
                     'connection' => $record->getConnectionName(),
+                    'distinct_signatures' => [],
                 ];
             }
 
+            $signature = md5($record->getSql() . '|' . json_encode($record->getBindings()));
+            $patterns[$groupKey]['distinct_signatures'][$signature] = true;
             $patterns[$groupKey]['count']++;
             $patterns[$groupKey]['total_time'] += $record->getTimeMs();
             if ($record->getCaller() && ! $patterns[$groupKey]['caller']) {
@@ -81,6 +84,12 @@ class NPlusOneDetector implements DetectorContract
         foreach ($patterns as $pattern => $data) {
             $count = $data['count'];
             if ($count < $minExecutions) {
+                continue;
+            }
+
+            // If all executions have identical queries and identical bindings,
+            // this is an identical duplicate query, not an N+1 relational loop with varying entity IDs.
+            if (count($data['distinct_signatures']) <= 1) {
                 continue;
             }
 

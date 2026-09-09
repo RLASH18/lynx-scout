@@ -24,12 +24,11 @@ class FindingsCommand extends Command
                             {--severity= : Filter by severity (critical, high, medium, low, info)}
                             {--type= : Filter by finding type}
                             {--recent : Only show findings from the last 24 hours}
-                            {--limit=20 : Maximum number of findings to display}';
+                            {--limit=20 : Maximum number of findings to display}
+                            {--clear : Clear all stored findings}';
 
     /**
      * The console command description.
-     *
-     * @var string
      */
     protected $description = 'Inspect stored and detected performance findings with optional filters';
 
@@ -39,6 +38,18 @@ class FindingsCommand extends Command
     public function handle(FindingRepositoryContract $repository, LynxScanner $scanner): int
     {
         renderUsing($this->output);
+
+        if ($this->option('clear')) {
+            $repository->clear();
+            render(<<<'HTML'
+                <div class="my-1">
+                    <span class="px-1 bg-green-500 text-black font-bold">CLEARED</span>
+                    <span class="ml-1 text-green-400 font-bold">All stored Lynx Scout findings have been cleared.</span>
+                </div>
+            HTML);
+
+            return Command::SUCCESS;
+        }
 
         LynxCli::header('FINDINGS', 'Historical Finding Archives');
 

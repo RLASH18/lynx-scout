@@ -74,6 +74,13 @@ class ReportGenerator
                     $lines[] = "Route: {$route}";
                 }
 
+                $queryPattern = is_array($evidence)
+                    ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? ($evidence['sample_sql'] ?? ($evidence['sql'] ?? null))))
+                    : null;
+                if ($queryPattern !== null) {
+                    $lines[] = "Query: {$queryPattern}";
+                }
+
                 if ($occurrences !== null) {
                     $lines[] = "Occurrences: {$occurrences}";
                 }

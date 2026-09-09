@@ -102,4 +102,18 @@ class NPlusOneDetectorTest extends TestCase
 
         $this->assertEmpty($detector->detect($records));
     }
+
+    public function test_identical_queries_with_same_parameter_are_not_classified_as_n_plus_one(): void
+    {
+        $detector = new NPlusOneDetector(threshold: 3);
+        $records = [
+            $this->makeRecord('SELECT * FROM users WHERE id = 1'),
+            $this->makeRecord('SELECT * FROM users WHERE id = 1'),
+            $this->makeRecord('SELECT * FROM users WHERE id = 1'),
+            $this->makeRecord('SELECT * FROM users WHERE id = 1'),
+        ];
+
+        $this->assertEmpty($detector->detect($records));
+    }
 }
+

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fixed `NPlusOneDetector` misclassifying identical queries as N+1 by checking parameter signature variation across executions.
+- Suppressed duplicate query and cache candidate findings when an N+1 pattern has already been diagnosed for the same query.
+- Enhanced `ReportCommand` and `ReportGenerator` to display normalized SQL patterns for distinct findings from the same caller.
+- Added `--clear` flag to `php artisan lynx:findings` to allow clearing stored findings.
+
 ## [1.2.0] - 2026-09-10
 
 ### Changed

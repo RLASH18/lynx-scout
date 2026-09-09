@@ -12,6 +12,7 @@ use Lynx\Scout\Collectors\RequestCollector;
 use Lynx\Scout\Contracts\DetectorContract;
 use Lynx\Scout\Contracts\FindingRepositoryContract;
 use Lynx\Scout\Data\Finding;
+use Lynx\Scout\Data\FindingType;
 use Lynx\Scout\Recommendations\RecommendationEngine;
 use Lynx\Scout\Scoring\ImpactScorer;
 
@@ -63,9 +64,11 @@ class LynxScanner
         $rawFindings = [];
 
         // 1. Query-level detectors
+        $queryFindings = [];
         foreach ($this->queryDetectors as $detector) {
-            $rawFindings = array_merge($rawFindings, $detector->detect($queries));
+            $queryFindings = array_merge($queryFindings, $detector->detect($queries));
         }
+        $rawFindings = array_merge($rawFindings, $this->deduplicateQueryFindings($queryFindings));
 
         // 2. Request-level detectors
         foreach ($this->requestDetectors as $detector) {
@@ -99,6 +102,66 @@ class LynxScanner
         }
 
         return $prioritized;
+    }
+
+    /**
+     * Deduplicate query findings and resolve cross-detector overlaps.
+     *
+     * @param list<Finding> $findings
+     * @return list<Finding>
+     */
+    private function deduplicateQueryFindings(array $findings): array
+    {
+        // Index all query patterns identified as N+1 relationship loops
+        $nPlusOnePatterns = [];
+        foreach ($findings as $f) {
+            if ($f->getType() === FindingType::NPlusOne->value) {
+                $evidence = $f->getEvidence();
+                $pattern = is_array($evidence) ? ($evidence['query_pattern'] ?? null) : null;
+                if ($pattern !== null) {
+                    $nPlusOnePatterns[strtolower(trim((string) $pattern))] = true;
+                }
+            }
+        }
+
+        $filtered = [];
+        $seen = [];
+
+        foreach ($findings as $f) {
+            $type = $f->getType();
+            $evidence = $f->getEvidence();
+
+            // Suppress duplicate_query or cache_candidate if query pattern is already diagnosed as N+1
+            if ($type === FindingType::DuplicateQuery->value) {
+                $pattern = is_array($evidence) ? ($evidence['query_pattern'] ?? null) : null;
+                if ($pattern !== null && isset($nPlusOnePatterns[strtolower(trim((string) $pattern))])) {
+                    continue;
+                }
+            }
+
+            if ($type === FindingType::CacheCandidate->value) {
+                $pattern = is_array($evidence) ? ($evidence['normalized_sql'] ?? ($evidence['query_pattern'] ?? null)) : null;
+                if ($pattern !== null && isset($nPlusOnePatterns[strtolower(trim((string) $pattern))])) {
+                    continue;
+                }
+            }
+
+            // Deduplicate exact duplicate findings (same type, caller, and query pattern)
+            $queryKey = is_array($evidence)
+                ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? ($evidence['uri'] ?? '')))
+                : '';
+            $callerKey = is_array($evidence) ? ($evidence['caller'] ?? '') : '';
+            $dedupeKey = $type . '|' . $callerKey . '|' . strtolower(trim((string) $queryKey));
+
+            if ($queryKey !== '' && isset($seen[$dedupeKey])) {
+                continue;
+            }
+
+            $seen[$dedupeKey] = true;
+            $filtered[] = $f;
+        }
+
+        return $filtered;
     }
 
     /**

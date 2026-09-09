@@ -61,6 +61,34 @@ class FileFindingRepository implements FindingRepositoryContract
 
         try {
             $stored = $this->loadRaw();
+
+        $nPlusOnePatterns = [];
+        foreach ($findings as $finding) {
+            if ($finding->getType() === FindingType::NPlusOne->value) {
+                $evidence = $finding->getEvidence();
+                $pattern = is_array($evidence) ? ($evidence['query_pattern'] ?? null) : null;
+                if ($pattern !== null) {
+                    $nPlusOnePatterns[strtolower(trim((string) $pattern))] = true;
+                }
+            }
+        }
+
+        if (! empty($nPlusOnePatterns)) {
+            $stored = array_values(array_filter($stored, function ($item) use ($nPlusOnePatterns): bool {
+                $type = $item['type'] ?? '';
+                if ($type === FindingType::DuplicateQuery->value || $type === FindingType::CacheCandidate->value) {
+                    $evidence = $item['evidence'] ?? [];
+                    $pattern = is_array($evidence)
+                        ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? null))
+                        : null;
+                    if ($pattern !== null && isset($nPlusOnePatterns[strtolower(trim((string) $pattern))])) {
+                        return false;
+                    }
+                }
+                return true;
+            }));
+        }
+
         $fingerprintMap = [];
 
         foreach ($stored as $idx => $item) {
@@ -135,9 +163,32 @@ class FileFindingRepository implements FindingRepositoryContract
         $raw = $this->loadRaw();
         $findings = [];
 
+        // Index all N+1 patterns to suppress redundant duplicate/cache findings
+        $nPlusOnePatterns = [];
+        foreach ($raw as $item) {
+            if (is_array($item) && ($item['type'] ?? '') === FindingType::NPlusOne->value) {
+                $evidence = $item['evidence'] ?? [];
+                $pattern = is_array($evidence) ? ($evidence['query_pattern'] ?? null) : null;
+                if ($pattern !== null) {
+                    $nPlusOnePatterns[strtolower(trim((string) $pattern))] = true;
+                }
+            }
+        }
+
         foreach ($raw as $item) {
             if (! is_array($item)) {
                 continue;
+            }
+
+            $type = $item['type'] ?? '';
+            if ($type === FindingType::DuplicateQuery->value || $type === FindingType::CacheCandidate->value) {
+                $evidence = $item['evidence'] ?? [];
+                $pattern = is_array($evidence)
+                    ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? null))
+                    : null;
+                if ($pattern !== null && isset($nPlusOnePatterns[strtolower(trim((string) $pattern))])) {
+                    continue;
+                }
             }
 
             try {

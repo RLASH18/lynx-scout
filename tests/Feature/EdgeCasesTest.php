@@ -184,4 +184,38 @@ class EdgeCasesTest extends TestCase
         $customFindings = array_filter($findings, fn ($f) => $f->getTitle() === 'Custom Plugin Finding');
         $this->assertNotEmpty($customFindings);
     }
+
+    /**
+     * Test scanner suppresses duplicate query findings when query is already classified as N+1.
+     */
+    public function test_scanner_suppresses_duplicate_query_when_n_plus_one_is_detected(): void
+    {
+        /** @var QueryCollector $collector */
+        $collector = $this->app->make(QueryCollector::class);
+        $collector->reset();
+
+        for ($i = 1; $i <= 6; $i++) {
+            $collector->addRecord(new QueryRecord(
+                sql: "SELECT * FROM users WHERE id = {$i}",
+                bindings: [$i],
+                timeMs: 2.0,
+                connectionName: 'testing',
+                executedAt: new DateTimeImmutable(),
+                normalizedSql: 'select * from users where id = ?',
+                caller: 'UserController@index',
+                context: ['request_id' => 'scan-test-1'],
+            ));
+        }
+
+        /** @var LynxScanner $scanner */
+        $scanner = $this->app->make(LynxScanner::class);
+        $findings = $scanner->scan(false);
+
+        $nPlusOneFindings = array_filter($findings, fn ($f) => $f->getType() === FindingType::NPlusOne->value);
+        $duplicateFindings = array_filter($findings, fn ($f) => $f->getType() === FindingType::DuplicateQuery->value);
+
+        $this->assertCount(1, $nPlusOneFindings);
+        $this->assertCount(0, $duplicateFindings);
+    }
 }
+

@@ -174,6 +174,17 @@ class ReportCommand extends Command
                     $safeCaller = htmlspecialchars((string) $caller, ENT_QUOTES, 'UTF-8');
                     $contextItems[] = "<span class=\"text-gray-500\">Caller:</span>&nbsp;<span class=\"text-yellow-300 font-bold\">{$safeCaller}</span>";
                 }
+
+                $queryPattern = is_array($evidence)
+                    ? ($evidence['query_pattern'] ?? ($evidence['normalized_sql'] ?? ($evidence['sample_sql'] ?? ($evidence['sql'] ?? null))))
+                    : null;
+                if ($queryPattern !== null) {
+                    $rawQuery = (string) $queryPattern;
+                    $trimmedQuery = strlen($rawQuery) > 85 ? substr($rawQuery, 0, 82) . '...' : $rawQuery;
+                    $safeQuery = htmlspecialchars($trimmedQuery, ENT_QUOTES, 'UTF-8');
+                    $contextItems[] = "<span class=\"text-gray-500\">Query:</span>&nbsp;<span class=\"text-emerald-400\">{$safeQuery}</span>";
+                }
+
                 $contextHtml = ! empty($contextItems)
                     ? '&nbsp;&nbsp;' . implode('&nbsp;<span class="text-gray-600">│</span>&nbsp;', $contextItems)
                     : '';

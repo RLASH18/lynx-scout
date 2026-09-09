@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.1.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
+  <a href="https://packagist.org/packages/rlash18/lynx-scout"><img src="https://img.shields.io/badge/packagist-v1.2.0-f59e0b.svg?style=for-the-badge&logo=packagist&logoColor=white" alt="Packagist"></a>
   <a href="https://laravel.com"><img src="https://img.shields.io/badge/Laravel-12.x%20%7C%2013.x-ff2d20.svg?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 12 & 13"></a>
   <a href="https://php.net"><img src="https://img.shields.io/badge/PHP-8.3%20%7C%208.4-777bb4.svg?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.3+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-10b981.svg?style=for-the-badge" alt="MIT License"></a>
@@ -162,6 +162,9 @@ Inspect historical findings persisted in `storage/lynx`:
 ```bash
 # View all recent findings in a formatted table
 php artisan lynx:findings
+
+# Clear all stored findings
+php artisan lynx:findings --clear
 
 # Filter by severity or category
 php artisan lynx:findings --severity=critical
@@ -325,11 +328,11 @@ $this->app->tag([
 
 ## Testing
 
-Lynx Scout is thoroughly verified with **109 tests and 354 assertions** across Laravel 12, Laravel 13, and PHP 8.3+:
+Lynx Scout is thoroughly verified with **111 tests and 357 assertions** across Laravel 12, Laravel 13, and PHP 8.3+:
 
 ```bash
 composer test
-# OK (109 tests, 354 assertions)
+# OK (111 tests, 357 assertions)
 ```
 
 The repository also runs the test suite automatically for PHP 8.3 and 8.4 through GitHub Actions.
