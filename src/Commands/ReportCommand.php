@@ -58,7 +58,7 @@ class ReportCommand extends Command
 
         if ($this->option('json')) {
             $payload = [
-                'package' => 'rlash18/lynx-scout',
+                'package' => 'ryanlester/lynx-scout',
                 'version' => LynxCli::VERSION,
                 'generated_at' => (new \DateTimeImmutable())->format(\DateTimeImmutable::ATOM),
                 'summary' => [
